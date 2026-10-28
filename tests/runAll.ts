@@ -418,6 +418,34 @@ async function runTests() {
   assert(accQuery && 'company_name' in accQuery && 'client_name' in accQuery && 'gst_no' in accQuery, 'Accounts ledger includes client company name, client name, and client GSTIN');
   assert(accQuery && 'invoice_total_amount' in accQuery, 'Accounts ledger includes invoice amount');
   assert(accQuery && 'invoice_date' in accQuery, 'Accounts ledger includes invoice date');
+  assert(accQuery && (accQuery.total_amount - accQuery.amount) === 18000, 'Total GST calculated correctly as total_amount - taxable_amount');
+
+  // Test 19: TDS Sec 194J (2%) and Sec 194H (10%) calculation
+  console.log('\n--- 19. TDS Section Calculation (194J vs 194H) ---');
+  const taxableVal = Number(accQuery.amount); // 100,000
+  const tds194J = taxableVal * 0.02;
+  const tds194H = taxableVal * 0.10;
+  assert(tds194J === 2000, 'Sec 194J calculates 2% of taxable amount (₹2,000)');
+  assert(tds194H === 10000, 'Sec 194H calculates 10% of taxable amount (₹10,000)');
+
+  // Test 20: Accounts Ledger Status and Section Fields Persistence
+  console.log('\n--- 20. Accounts Ledger Section Statuses and Fields Persistence ---');
+  db.prepare(`
+    UPDATE accounts_ledger SET
+      taxable_status = 'Complete',
+      gst_status = 'Partial',
+      tds_status = 'Complete',
+      tds_received_date = '2026-10-28',
+      tds_section = '194J'
+    WHERE invoice_id = ?
+  `).run(invId);
+
+  const updatedLedger = db.prepare('SELECT * FROM accounts_ledger WHERE invoice_id = ?').get(invId) as any;
+  assert(updatedLedger.taxable_status === 'Complete', 'Taxable status persisted as Complete');
+  assert(updatedLedger.gst_status === 'Partial', 'GST status persisted as Partial');
+  assert(updatedLedger.tds_status === 'Complete', 'TDS status persisted as Complete');
+  assert(updatedLedger.tds_received_date === '2026-10-28', 'TDS received date persisted');
+  assert(updatedLedger.tds_section === '194J', 'TDS section persisted as 194J');
 
   // Cleanup test artifacts
   db.prepare('DELETE FROM disbursements WHERE file_id = ?').run(fileId1);

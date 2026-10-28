@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Save, RefreshCw, CheckCircle, AlertCircle, Search, X } from 'lucide-react';
-import { AccountsRecord, VoucherType, ReceivingAccount } from '../types/index.js';
+import { AccountsRecord, ReceivingAccount } from '../types/index.js';
 import { apiRequest } from '../api/client.js';
 import { Button } from '../components/Button.js';
-import { Input } from '../components/Input.js';
-import { Select } from '../components/Select.js';
 
 export const Accounts: React.FC = () => {
   const [accounts, setAccounts] = useState<AccountsRecord[]>([]);
-  const [voucherTypes, setVoucherTypes] = useState<VoucherType[]>([]);
   const [bankAccounts, setBankAccounts] = useState<ReceivingAccount[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,14 +23,12 @@ export const Accounts: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [accRes, vRes, bRes] = await Promise.all([
+      const [accRes, bRes] = await Promise.all([
         apiRequest<{ accounts: AccountsRecord[] }>('/api/accounts'),
-        apiRequest<{ voucherTypes: VoucherType[] }>('/api/voucher-types'),
         apiRequest<{ accounts: ReceivingAccount[] }>('/api/receiving-accounts')
       ]);
 
       setAccounts(accRes.accounts || []);
-      setVoucherTypes(vRes.voucherTypes || []);
       setBankAccounts(bRes.accounts || []);
 
       // Initialize drafts with loaded database values
@@ -44,11 +39,16 @@ export const Accounts: React.FC = () => {
           taxable_received_date: item.taxable_received_date || '',
           taxable_amount: item.taxable_amount !== null && item.taxable_amount !== undefined ? String(item.taxable_amount) : '',
           taxable_bank_account_id: item.taxable_bank_account_id || '',
+          taxable_status: item.taxable_status || 'Pending',
           gst_received_date: item.gst_received_date || '',
           gst_amount: item.gst_amount !== null && item.gst_amount !== undefined ? String(item.gst_amount) : '',
           gst_account_id: item.gst_account_id || '',
+          gst_status: item.gst_status || 'Pending',
+          tds_received_date: item.tds_received_date || '',
           tds_amount: item.tds_amount !== null && item.tds_amount !== undefined ? String(item.tds_amount) : '',
-          tds_recovery_status: item.tds_recovery_status || 'Pending'
+          tds_bank_account_id: item.tds_bank_account_id || '',
+          tds_section: item.tds_section || '194J',
+          tds_status: item.tds_status || 'Pending'
         };
       });
       setEditDrafts(initialDrafts);
@@ -99,7 +99,7 @@ export const Accounts: React.FC = () => {
         body: JSON.stringify(draft)
       });
 
-      setSuccessMsg(`Ledger sections updated successfully for Invoice.`);
+      setSuccessMsg(`Ledger sections updated successfully.`);
       // Update local accounts state
       setAccounts(prev =>
         prev.map(item => (item.invoice_id === invoiceId ? { ...item, ...res.account } : item))
@@ -243,6 +243,22 @@ export const Accounts: React.FC = () => {
 
                 const yearMonthLabel = acc.month ? `${monthNames[acc.month - 1]} ${acc.year}` : `${acc.year}`;
 
+                // Calculate GST amount for card 2 header
+                const totalGstAmount = acc.invoice_gst_amount !== undefined
+                  ? acc.invoice_gst_amount
+                  : (Number(acc.invoice_total_amount) - Number(acc.invoice_taxable_amount));
+
+                // Calculate TDS for card 3 header based on selected section
+                const tdsSection = draft.tds_section;
+                let calculatedTdsHeader = 'Sec 194J / 194H';
+                if (tdsSection === '194J') {
+                  const amt = Number(acc.invoice_taxable_amount) * 0.02;
+                  calculatedTdsHeader = `TDS: ₹${amt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                } else if (tdsSection === '194H') {
+                  const amt = Number(acc.invoice_taxable_amount) * 0.10;
+                  calculatedTdsHeader = `TDS: ₹${amt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+                }
+
                 return (
                   <React.Fragment key={acc.invoice_id}>
                     {/* Entire record row is clickable to view/edit ledger details */}
@@ -308,166 +324,229 @@ export const Accounts: React.FC = () => {
                       <tr>
                         <td colSpan={5} className="expanded-row-cell">
                           <div className="expanded-row-content" onClick={e => e.stopPropagation()}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, color: '#1e3a8a' }}>
-                                  Collection Ledger for Invoice: {acc.invoice_number}
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <label style={{ fontSize: '11.5px', fontWeight: 600, color: '#475569' }}>Voucher:</label>
-                                  <select
-                                    value={draft.voucher_id || ''}
-                                    onChange={e => handleDraftChange(acc.invoice_id, 'voucher_id', e.target.value)}
-                                    className="select-control"
-                                    style={{ height: '30px', fontSize: '12px', padding: '2px 8px', width: '170px' }}
-                                  >
-                                    <option value="">-- Select Voucher --</option>
-                                    {voucherTypes.map(v => (
-                                      <option key={v.id} value={v.id}>
-                                        {v.voucher_name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                              </div>
-
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  isLoading={isSavingThis}
-                                  onClick={() => handleSaveRow(acc.invoice_id)}
-                                  icon={<Save size={14} />}
-                                >
-                                  Save Ledger Details
-                                </Button>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleRowExpansion(acc.invoice_id)}
-                                  className="inline-btn-cancel"
-                                  style={{ height: '30px', padding: '0 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                  title="Close ledger details"
-                                >
-                                  <X size={12} /> Close
-                                </button>
-                              </div>
+                            {/* Top action buttons: 'Collection Ledger for Invoice: ... Voucher:' removed */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', marginBottom: '14px' }}>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                isLoading={isSavingThis}
+                                onClick={() => handleSaveRow(acc.invoice_id)}
+                                icon={<Save size={14} />}
+                              >
+                                Save Ledger Details
+                              </Button>
+                              <button
+                                type="button"
+                                onClick={() => toggleRowExpansion(acc.invoice_id)}
+                                className="inline-btn-cancel"
+                                style={{ height: '30px', padding: '0 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                title="Close ledger details"
+                              >
+                                <X size={12} /> Close
+                              </button>
                             </div>
 
-                            <div className="ledger-subsections" style={{ marginTop: '14px' }}>
-                              {/* Section 1: Taxable Value */}
+                            <div className="ledger-subsections">
+                              {/* Section 1: 1. Taxable Value */}
                               <div className="ledger-card">
                                 <div className="ledger-card-title">
                                   <span>1. Taxable Value</span>
-                                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
                                     Inv: ₹{Number(acc.invoice_taxable_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                   </span>
                                 </div>
 
-                                <Input
-                                  type="date"
-                                  label="Taxable Value Received Date"
-                                  required
-                                  value={draft.taxable_received_date || ''}
-                                  onChange={e => handleDraftChange(acc.invoice_id, 'taxable_received_date', e.target.value)}
-                                />
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' }}>
+                                  <input
+                                    type="date"
+                                    placeholder="Taxable Value Received Date"
+                                    className="input-control"
+                                    value={draft.taxable_received_date || ''}
+                                    onChange={e => handleDraftChange(acc.invoice_id, 'taxable_received_date', e.target.value)}
+                                    title="Taxable Value Received Date"
+                                  />
 
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  label="Taxable Amount Received (₹)"
-                                  required
-                                  placeholder="e.g. 100000"
-                                  value={draft.taxable_amount || ''}
-                                  onChange={e => handleDraftChange(acc.invoice_id, 'taxable_amount', e.target.value)}
-                                />
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="Taxable Amount Received (₹)"
+                                    className="input-control"
+                                    value={draft.taxable_amount || ''}
+                                    onChange={e => handleDraftChange(acc.invoice_id, 'taxable_amount', e.target.value)}
+                                    title="Taxable Amount Received (₹)"
+                                  />
 
-                                <Select
-                                  label="Bank Account"
-                                  required
-                                  value={draft.taxable_bank_account_id || ''}
-                                  onChange={e => handleDraftChange(acc.invoice_id, 'taxable_bank_account_id', e.target.value)}
-                                >
-                                  <option value="">-- Select Receiving Bank A/C --</option>
-                                  {bankAccounts.map(b => (
-                                    <option key={b.id} value={b.id}>
-                                      {b.account_name} ({b.account_number})
-                                    </option>
-                                  ))}
-                                </Select>
+                                  <select
+                                    value={draft.taxable_bank_account_id || ''}
+                                    onChange={e => handleDraftChange(acc.invoice_id, 'taxable_bank_account_id', e.target.value)}
+                                    className="select-control"
+                                    title="Bank Account"
+                                  >
+                                    <option value="">-- Bank Account --</option>
+                                    {bankAccounts.map(b => (
+                                      <option key={b.id} value={b.id}>
+                                        {b.account_name} ({b.account_number})
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  <select
+                                    value={draft.taxable_status || 'Pending'}
+                                    onChange={e => handleDraftChange(acc.invoice_id, 'taxable_status', e.target.value)}
+                                    className="select-control"
+                                    title="Status (Pending, Partial, Complete)"
+                                  >
+                                    <option value="Pending">Pending</option>
+                                    <option value="Partial">Partial</option>
+                                    <option value="Complete">Complete</option>
+                                  </select>
+                                </div>
                               </div>
 
-                              {/* Section 2: GST */}
+                              {/* Section 2: 2. GST Collection */}
                               <div className="ledger-card">
                                 <div className="ledger-card-title">
                                   <span>2. GST Collection</span>
-                                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                                    Statutory Tax
+                                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                                    GST: ₹{Number(totalGstAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                   </span>
                                 </div>
 
-                                <Input
-                                  type="date"
-                                  label="GST Value Received Date"
-                                  required
-                                  value={draft.gst_received_date || ''}
-                                  onChange={e => handleDraftChange(acc.invoice_id, 'gst_received_date', e.target.value)}
-                                />
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' }}>
+                                  <input
+                                    type="date"
+                                    placeholder="GST Value Received Date"
+                                    className="input-control"
+                                    value={draft.gst_received_date || ''}
+                                    onChange={e => handleDraftChange(acc.invoice_id, 'gst_received_date', e.target.value)}
+                                    title="GST Value Received Date"
+                                  />
 
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  label="GST Amount Received (₹)"
-                                  required
-                                  placeholder="e.g. 18000"
-                                  value={draft.gst_amount || ''}
-                                  onChange={e => handleDraftChange(acc.invoice_id, 'gst_amount', e.target.value)}
-                                />
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="GST Amount Received (₹)"
+                                    className="input-control"
+                                    value={draft.gst_amount || ''}
+                                    onChange={e => handleDraftChange(acc.invoice_id, 'gst_amount', e.target.value)}
+                                    title="GST Amount Received (₹)"
+                                  />
 
-                                <Select
-                                  label="GST Account"
-                                  required
-                                  value={draft.gst_account_id || ''}
-                                  onChange={e => handleDraftChange(acc.invoice_id, 'gst_account_id', e.target.value)}
-                                >
-                                  <option value="">-- Select GST Account --</option>
-                                  {bankAccounts.map(b => (
-                                    <option key={b.id} value={b.id}>
-                                      {b.account_name} ({b.account_number})
-                                    </option>
-                                  ))}
-                                </Select>
+                                  <select
+                                    value={draft.gst_account_id || ''}
+                                    onChange={e => handleDraftChange(acc.invoice_id, 'gst_account_id', e.target.value)}
+                                    className="select-control"
+                                    title="Bank Account"
+                                  >
+                                    <option value="">-- Bank Account --</option>
+                                    {bankAccounts.map(b => (
+                                      <option key={b.id} value={b.id}>
+                                        {b.account_name} ({b.account_number})
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  <select
+                                    value={draft.gst_status || 'Pending'}
+                                    onChange={e => handleDraftChange(acc.invoice_id, 'gst_status', e.target.value)}
+                                    className="select-control"
+                                    title="Status (Pending, Partial, Complete)"
+                                  >
+                                    <option value="Pending">Pending</option>
+                                    <option value="Partial">Partial</option>
+                                    <option value="Complete">Complete</option>
+                                  </select>
+                                </div>
                               </div>
 
-                              {/* Section 3: TDS */}
+                              {/* Section 3: 3. TDS Recovery */}
                               <div className="ledger-card">
                                 <div className="ledger-card-title">
                                   <span>3. TDS Recovery</span>
-                                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                                    Sec 194J / 194H
+                                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                                    {calculatedTdsHeader}
                                   </span>
                                 </div>
 
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  label="TDS Amount (₹)"
-                                  required
-                                  placeholder="e.g. 2000"
-                                  value={draft.tds_amount || ''}
-                                  onChange={e => handleDraftChange(acc.invoice_id, 'tds_amount', e.target.value)}
-                                />
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' }}>
+                                  {/* Radio buttons for Sec 194J vs Sec 194H */}
+                                  <div
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-around',
+                                      padding: '6px 8px',
+                                      backgroundColor: '#f8fafc',
+                                      borderRadius: '4px',
+                                      border: '1px solid #e2e8f0'
+                                    }}
+                                  >
+                                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', cursor: 'pointer', fontWeight: 600, color: tdsSection === '194J' ? '#1e3a8a' : '#475569' }}>
+                                      <input
+                                        type="radio"
+                                        name={`tds_section_${acc.invoice_id}`}
+                                        value="194J"
+                                        checked={tdsSection === '194J'}
+                                        onChange={() => handleDraftChange(acc.invoice_id, 'tds_section', '194J')}
+                                      />
+                                      Sec 194J (2%)
+                                    </label>
+                                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', cursor: 'pointer', fontWeight: 600, color: tdsSection === '194H' ? '#1e3a8a' : '#475569' }}>
+                                      <input
+                                        type="radio"
+                                        name={`tds_section_${acc.invoice_id}`}
+                                        value="194H"
+                                        checked={tdsSection === '194H'}
+                                        onChange={() => handleDraftChange(acc.invoice_id, 'tds_section', '194H')}
+                                      />
+                                      Sec 194H (10%)
+                                    </label>
+                                  </div>
 
-                                <Select
-                                  label="TDS Recovery Status"
-                                  required
-                                  value={draft.tds_recovery_status || 'Pending'}
-                                  onChange={e => handleDraftChange(acc.invoice_id, 'tds_recovery_status', e.target.value)}
-                                >
-                                  <option value="Pending">Pending</option>
-                                  <option value="Recovered">Recovered</option>
-                                  <option value="Claimed in Return">Claimed in Return</option>
-                                  <option value="Written Off">Written Off</option>
-                                </Select>
+                                  <input
+                                    type="date"
+                                    placeholder="TDS Value Received Date"
+                                    className="input-control"
+                                    value={draft.tds_received_date || ''}
+                                    onChange={e => handleDraftChange(acc.invoice_id, 'tds_received_date', e.target.value)}
+                                    title="TDS Value Received Date"
+                                  />
+
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="TDS Amount Received (₹)"
+                                    className="input-control"
+                                    value={draft.tds_amount || ''}
+                                    onChange={e => handleDraftChange(acc.invoice_id, 'tds_amount', e.target.value)}
+                                    title="TDS Amount Received (₹)"
+                                  />
+
+                                  <select
+                                    value={draft.tds_bank_account_id || ''}
+                                    onChange={e => handleDraftChange(acc.invoice_id, 'tds_bank_account_id', e.target.value)}
+                                    className="select-control"
+                                    title="Bank Account"
+                                  >
+                                    <option value="">-- Bank Account --</option>
+                                    {bankAccounts.map(b => (
+                                      <option key={b.id} value={b.id}>
+                                        {b.account_name} ({b.account_number})
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  <select
+                                    value={draft.tds_status || 'Pending'}
+                                    onChange={e => handleDraftChange(acc.invoice_id, 'tds_status', e.target.value)}
+                                    className="select-control"
+                                    title="Status (Pending, Partial, Complete)"
+                                  >
+                                    <option value="Pending">Pending</option>
+                                    <option value="Partial">Partial</option>
+                                    <option value="Complete">Complete</option>
+                                  </select>
+                                </div>
                               </div>
                             </div>
                           </div>

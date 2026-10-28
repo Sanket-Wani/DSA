@@ -185,6 +185,7 @@ export interface AccountsRecord {
   month: number;
   invoice_taxable_amount: number;
   invoice_total_amount: number;
+  invoice_gst_amount?: number;
   firm_name: string;
   trade_legal_name: string;
   company_name?: string;
@@ -198,11 +199,18 @@ export interface AccountsRecord {
   taxable_amount?: number | null;
   taxable_bank_account_id?: number | null;
   taxable_bank_account_name?: string | null;
+  taxable_status?: 'Pending' | 'Partial' | 'Complete';
   gst_received_date?: string | null;
   gst_amount?: number | null;
   gst_account_id?: number | null;
   gst_account_name?: string | null;
+  gst_status?: 'Pending' | 'Partial' | 'Complete';
   tds_amount?: number | null;
-  tds_recovery_status: 'Pending' | 'Recovered' | 'Claimed in Return' | 'Written Off';
+  tds_received_date?: string | null;
+  tds_bank_account_id?: number | null;
+  tds_bank_account_name?: string | null;
+  tds_section?: '194J' | '194H';
+  tds_status?: 'Pending' | 'Partial' | 'Complete';
+  tds_recovery_status?: 'Pending' | 'Recovered' | 'Claimed in Return' | 'Written Off';
   updated_at?: string | null;
 }

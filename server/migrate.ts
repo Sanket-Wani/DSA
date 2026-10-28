@@ -276,6 +276,27 @@ export function runMigration() {
       } else {
         db.prepare("UPDATE files SET status = 'Disburse' WHERE status = 'Disbursement'").run();
       }
+
+      // 10. Add collection ledger section status, TDS date, TDS bank account, and TDS section columns
+      const ledgerCols = db.prepare("PRAGMA table_info(accounts_ledger)").all() as any[];
+      if (!ledgerCols.some(c => c.name === 'taxable_status')) {
+        db.exec("ALTER TABLE accounts_ledger ADD COLUMN taxable_status TEXT DEFAULT 'Pending'");
+      }
+      if (!ledgerCols.some(c => c.name === 'gst_status')) {
+        db.exec("ALTER TABLE accounts_ledger ADD COLUMN gst_status TEXT DEFAULT 'Pending'");
+      }
+      if (!ledgerCols.some(c => c.name === 'tds_status')) {
+        db.exec("ALTER TABLE accounts_ledger ADD COLUMN tds_status TEXT DEFAULT 'Pending'");
+      }
+      if (!ledgerCols.some(c => c.name === 'tds_received_date')) {
+        db.exec("ALTER TABLE accounts_ledger ADD COLUMN tds_received_date TEXT");
+      }
+      if (!ledgerCols.some(c => c.name === 'tds_bank_account_id')) {
+        db.exec("ALTER TABLE accounts_ledger ADD COLUMN tds_bank_account_id INTEGER REFERENCES receiving_bank_accounts(id)");
+      }
+      if (!ledgerCols.some(c => c.name === 'tds_section')) {
+        db.exec("ALTER TABLE accounts_ledger ADD COLUMN tds_section TEXT DEFAULT '194J'");
+      }
     })();
   } finally {
     db.pragma('foreign_keys = ON');
