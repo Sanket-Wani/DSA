@@ -16,9 +16,48 @@ interface DashboardProps {
   initialCard?: DashboardCardType | null;
 }
 
+// Inward Concave Fillets for the Merged Tab effect
+const LeftFillet: React.FC = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    style={{
+      position: 'absolute',
+      bottom: '-1px',
+      left: '-16px',
+      zIndex: 21,
+      pointerEvents: 'none'
+    }}
+    aria-hidden="true"
+  >
+    <path d="M 0,16 A 16,16 0 0,0 16,0 L 16,16 Z" fill="#ffffff" />
+    <path d="M 0,16 A 16,16 0 0,0 16,0" fill="none" stroke="#e2e8f0" strokeWidth="1" />
+  </svg>
+);
+
+const RightFillet: React.FC = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    style={{
+      position: 'absolute',
+      bottom: '-1px',
+      right: '-16px',
+      zIndex: 21,
+      pointerEvents: 'none'
+    }}
+    aria-hidden="true"
+  >
+    <path d="M 0,0 A 16,16 0 0,0 16,16 L 0,16 Z" fill="#ffffff" />
+    <path d="M 0,0 A 16,16 0 0,0 16,16" fill="none" stroke="#e2e8f0" strokeWidth="1" />
+  </svg>
+);
+
 export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
-  // Default to 'files' so workspace data is displayed immediately
-  const [selectedCard, setSelectedCard] = useState<DashboardCardType>(initialCard || 'files');
+  // Default to 'disbursements' or 'files' (or initialCard)
+  const [selectedCard, setSelectedCard] = useState<DashboardCardType>(initialCard || 'disbursements');
 
   // Live Metrics for the 3 Cards
   const [metrics, setMetrics] = useState({
@@ -69,11 +108,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
 
   return (
     <div className="page-content">
-      {/* Dashboard Heading Row (Section 8.1) */}
-      <div className="page-header" style={{ marginBottom: 'var(--space-4)' }}>
+      {/* Dashboard Heading Row */}
+      <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>
-          <h1 className="page-title">Dashboard</h1>
-          <div className="page-subtitle">
+          <h1 className="page-title" style={{ fontSize: '24px', fontWeight: 600, color: '#111827', margin: 0 }}>Dashboard</h1>
+          <div className="page-subtitle" style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
             Overview of loan files, disbursements, and accounts ledger.
           </div>
         </div>
@@ -97,9 +136,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
               }
             }}
           >
+            {/* When Card 1 is active, render bottom mask and right fillet */}
+            {selectedCard === 'files' && (
+              <>
+                <div className="dashboard-card-bottom-mask" />
+                <RightFillet />
+              </>
+            )}
+
             <div className="dashboard-card-top">
               <div className="dashboard-card-icon-badge">
-                <FileText size={16} />
+                <FileText size={16} strokeWidth={1.8} />
               </div>
               <span className={`dashboard-card-stage-pill ${selectedCard === 'files' ? 'active' : ''}`}>
                 {selectedCard === 'files' ? 'Active' : 'Stage 1'}
@@ -121,7 +168,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
 
             <div className="dashboard-card-status-line">
               <span>{selectedCard === 'files' ? 'Showing data below' : 'Click to view file records'}</span>
-              {selectedCard === 'files' && <Check size={14} />}
+              {selectedCard === 'files' && <Check size={14} strokeWidth={2.5} />}
             </div>
           </div>
 
@@ -139,9 +186,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
               }
             }}
           >
+            {/* When Card 2 is active, render bottom mask, left fillet, and right fillet */}
+            {selectedCard === 'disbursements' && (
+              <>
+                <LeftFillet />
+                <div className="dashboard-card-bottom-mask" />
+                <RightFillet />
+              </>
+            )}
+
             <div className="dashboard-card-top">
               <div className="dashboard-card-icon-badge">
-                <Banknote size={16} />
+                <Banknote size={16} strokeWidth={1.8} />
               </div>
               <span className={`dashboard-card-stage-pill ${selectedCard === 'disbursements' ? 'active' : ''}`}>
                 {selectedCard === 'disbursements' ? 'Active' : 'Stage 2'}
@@ -168,7 +224,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
 
             <div className="dashboard-card-status-line">
               <span>{selectedCard === 'disbursements' ? 'Showing data below' : 'Click to view disbursements'}</span>
-              {selectedCard === 'disbursements' && <Check size={14} />}
+              {selectedCard === 'disbursements' && <Check size={14} strokeWidth={2.5} />}
             </div>
           </div>
 
@@ -186,9 +242,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
               }
             }}
           >
+            {/* When Card 3 is active, render left fillet and bottom mask */}
+            {selectedCard === 'accounts' && (
+              <>
+                <LeftFillet />
+                <div className="dashboard-card-bottom-mask" />
+              </>
+            )}
+
             <div className="dashboard-card-top">
               <div className="dashboard-card-icon-badge">
-                <BookOpen size={16} />
+                <BookOpen size={16} strokeWidth={1.8} />
               </div>
               <span className={`dashboard-card-stage-pill ${selectedCard === 'accounts' ? 'active' : ''}`}>
                 {selectedCard === 'accounts' ? 'Active' : 'Stage 3'}
@@ -210,17 +274,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
 
             <div className="dashboard-card-status-line">
               <span>{selectedCard === 'accounts' ? 'Showing data below' : 'Click to view accounts ledger'}</span>
-              {selectedCard === 'accounts' && <Check size={14} />}
+              {selectedCard === 'accounts' && <Check size={14} strokeWidth={2.5} />}
             </div>
           </div>
 
         </div>
 
-        {/* Data Section Container — Separated with 24px space, thin neutral border, no black outline */}
+        {/* Data Section Container — Dynamically merges with the active card */}
         <div
           className="dashboard-data-container"
           role="tabpanel"
           aria-label={`${selectedCard} workspace`}
+          style={{
+            borderTopLeftRadius: selectedCard === 'files' ? 0 : 20,
+            borderTopRightRadius: selectedCard === 'accounts' ? 0 : 20
+          }}
         >
           <div className="dashboard-embedded-content">
             {selectedCard === 'files' && <FileLoggedIn />}
@@ -233,3 +301,4 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
     </div>
   );
 };
+

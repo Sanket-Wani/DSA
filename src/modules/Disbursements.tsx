@@ -250,8 +250,16 @@ export const Disbursements: React.FC = () => {
         </div>
       )}
 
-      {/* File ID Lookup & Disbursed Amounts Panel */}
-      <div className="panel" style={{ marginBottom: '24px' }}>
+      {/* File ID Lookup Box */}
+      <div
+        style={{
+          border: '1px solid #e2e8f0',
+          borderRadius: '12px',
+          padding: '18px 22px',
+          backgroundColor: '#ffffff',
+          marginBottom: '28px'
+        }}
+      >
         <form onSubmit={handleLookup} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ flex: '1', minWidth: '280px' }}>
             <FileAutocompleteInput
@@ -266,20 +274,34 @@ export const Disbursements: React.FC = () => {
             />
           </div>
           <div style={{ paddingTop: '24px' }}>
-            <Button
+            <button
               type="submit"
-              variant="primary"
-              size="md"
-              isLoading={isSearching}
-              icon={<Search size={16} />}
+              disabled={isSearching}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: '#0f172a',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '9px 18px',
+                fontSize: '13px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'background-color 150ms ease'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#000000')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0f172a')}
             >
-              Retrieve File Details
-            </Button>
+              <Search size={15} /> Retrieve File Details
+            </button>
           </div>
         </form>
+      </div>
 
-        {/* 'Disbursed Amounts' List under the input field */}
-        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
+      {/* 'Disbursed Amounts' List under the input field */}
+      <div style={{ marginBottom: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -414,16 +436,16 @@ export const Disbursements: React.FC = () => {
               <div className="table-container">
                 <table className="data-table">
                   <thead>
-                    <tr>
-                      <th>File ID</th>
-                      <th>Client / Company</th>
-                      <th>Bank & Product</th>
-                      <th style={{ textAlign: 'right' }}>Sanction Amount (₹)</th>
-                      <th style={{ textAlign: 'center' }}>Disbursements Done</th>
-                      <th style={{ textAlign: 'right' }}>Total Disbursed (₹)</th>
-                      <th style={{ textAlign: 'right' }}>Remaining (₹)</th>
-                      <th>Latest Disbursement</th>
-                      <th style={{ textAlign: 'center' }}>Action</th>
+                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>File ID</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Client / Company</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Bank & Product</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right' }}>Sanction Amount (₹)</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'center' }}>Disbursements Done</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right' }}>Total Disbursed (₹)</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right' }}>Remaining (₹)</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Latest Disbursement</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'center' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -447,12 +469,16 @@ export const Disbursements: React.FC = () => {
                                 setLookupFileId(f.file_id);
                                 fetchDisbursementsForFile(f.file_id);
                               }}
-                              className="badge badge-neutral"
                               style={{
-                                cursor: 'pointer',
-                                fontWeight: 600,
                                 fontFamily: 'monospace',
-                                border: '1px solid var(--color-border)'
+                                fontWeight: 600,
+                                fontSize: '12px',
+                                color: '#1e293b',
+                                backgroundColor: '#f1f5f9',
+                                border: '1px solid #e2e8f0',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                cursor: 'pointer'
                               }}
                               title={`Click to select ${f.file_id}`}
                             >
@@ -460,19 +486,19 @@ export const Disbursements: React.FC = () => {
                             </button>
                           </td>
                           <td>
-                            <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                            <div style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>
                               {f.company_name || '—'}
                             </div>
-                            <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                            <div style={{ fontSize: '12px', color: '#64748b' }}>
                               {f.client_name || ''}
                             </div>
                           </td>
                           <td>
-                            <div style={{ fontSize: '12px', color: 'var(--color-text-primary)' }}>
+                            <div style={{ fontSize: '13px', fontWeight: 500, color: '#111827' }}>
                               {f.bank_name || '—'}
                             </div>
                             {f.product_acronym && (
-                              <span className="badge badge-neutral" style={{ fontSize: '10px', marginTop: '2px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: '#475569', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', padding: '1px 6px', borderRadius: '4px', display: 'inline-block', marginTop: '2px' }}>
                                 {f.product_acronym}
                               </span>
                             )}
@@ -484,49 +510,67 @@ export const Disbursements: React.FC = () => {
                             <span
                               style={{
                                 display: 'inline-block',
-                                padding: '3px 10px',
-                                borderRadius: '12px',
-                                backgroundColor: '#e0f2fe',
-                                color: '#0369a1',
-                                fontWeight: 700,
+                                padding: '3px 12px',
+                                borderRadius: '9999px',
+                                backgroundColor: '#eff6ff',
+                                color: '#1d4ed8',
+                                fontWeight: 600,
                                 fontSize: '12px',
                                 letterSpacing: '0.02em',
-                                border: '1px solid #bae6fd'
+                                border: '1px solid #dbeafe'
                               }}
                             >
                               {f.disbursement_count} {f.disbursement_count === 1 ? 'disbursement' : 'disbursements'}
                             </span>
                           </td>
-                          <td className="table-cell-num" style={{ fontWeight: 700, color: 'var(--color-action-primary)' }}>
+                          <td className="table-cell-num" style={{ fontWeight: 700, color: '#111827' }}>
                             ₹{Number(f.total_disbursed_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
                           <td
                             className="table-cell-num"
                             style={{
-                              color: f.remaining_amount > 0 ? '#b45309' : 'var(--color-success)',
+                              color: f.remaining_amount > 0 ? '#b45309' : '#16a34a',
                               fontWeight: 600
                             }}
                           >
                             ₹{Number(f.remaining_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="num-tabular" style={{ fontSize: '12px' }}>
+                          <td className="num-tabular" style={{ fontSize: '12px', color: '#475569' }}>
                             {f.latest_disbursement_date || '—'}
                           </td>
                           <td style={{ textAlign: 'center' }}>
-                            <Button
+                            <button
                               type="button"
-                              variant={isCurrentFile ? 'primary' : 'secondary'}
-                              size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setLookupFileId(f.file_id);
                                 fetchDisbursementsForFile(f.file_id);
                               }}
-                              icon={<ArrowRight size={12} />}
-                              style={{ height: '26px', padding: '0 8px', fontSize: '11px' }}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '12px',
+                                fontWeight: 500,
+                                color: '#111827',
+                                backgroundColor: isCurrentFile ? '#f1f5f9' : '#ffffff',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '6px',
+                                padding: '4px 10px',
+                                cursor: 'pointer',
+                                transition: 'all 120ms ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = '#f8fafc';
+                                e.currentTarget.style.borderColor = '#cbd5e1';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = isCurrentFile ? '#f1f5f9' : '#ffffff';
+                                e.currentTarget.style.borderColor = '#e2e8f0';
+                              }}
                             >
-                              {isCurrentFile ? 'Selected' : 'Select File'}
-                            </Button>
+                              <ArrowRight size={13} /> {isCurrentFile ? 'Selected' : 'Select File'}
+                            </button>
                           </td>
                         </tr>
                       );
@@ -537,7 +581,6 @@ export const Disbursements: React.FC = () => {
             )
           )}
         </div>
-      </div>
 
       {/* Autofetched File Details and Disbursement Entry */}
       {fileData && (

@@ -340,165 +340,194 @@
 }
 
 /* ==========================================================================
-   Dashboard 3-Card Deck & Data Section (Strictly complying with ui_design_system_source_of_truth.md)
+   Dashboard 3-Card Deck & Merged Data Section (Strictly matching reference design)
    ========================================================================== */
 
 .dashboard-deck {
   display: flex;
   flex-direction: column;
-  margin-top: var(--space-2);
+  position: relative;
+  width: 100%;
 }
 
 .dashboard-cards-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-4); /* 16px */
-  margin-bottom: var(--space-6); /* 24px space between cards and data section */
+  gap: 20px;
+  position: relative;
+  z-index: 10;
+  margin-bottom: 24px;
 }
 
-/* Card base: 1px subtle neutral border, no black outline, no heavy shadow */
+/* Card base: 1px subtle neutral border, elegant rounded corners */
 .dashboard-card {
   position: relative;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg); /* 12px */
-  padding: var(--space-4); /* 16px */
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px 20px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 140px;
+  min-height: 154px;
   text-align: left;
-  transition: background-color 120ms ease, border-color 120ms ease;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
   user-select: none;
-  box-shadow: var(--shadow-subtle);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
-.dashboard-card:hover {
-  background-color: var(--color-surface-hover);
-  border-color: var(--color-border-strong);
+.dashboard-card:not(.active):hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
-/* Inactive cards: pale neutral background */
-.dashboard-card:not(.active) {
-  background-color: var(--color-surface-subtle);
-  border-color: var(--color-border);
-}
-
-/* Active card: crisp white surface, clear border, subtle indicator (zero black outline, zero heavy shadow) */
+/* Active card: extends 24px down through the grid's margin-bottom to physically dock with lower container */
 .dashboard-card.active {
-  background-color: var(--color-surface);
-  border-color: var(--color-border-strong);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding-bottom: 42px; /* 18px + 24px extension */
+  margin-bottom: -24px; /* Pulls bottom down into the lower container top border */
+  border-bottom: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-color: #e2e8f0;
+  z-index: 20;
+  box-shadow: none;
+}
+
+/* Bottom mask for active card: hides the 1px top border of the data container underneath */
+.dashboard-card-bottom-mask {
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background-color: #ffffff;
+  z-index: 22;
+  pointer-events: none;
 }
 
 .dashboard-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-3);
+  margin-bottom: 12px;
 }
 
 .dashboard-card-icon-badge {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background-color: var(--color-surface-muted);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
+  background-color: #ffffff;
+  color: #475569;
+  border: 1px solid #e2e8f0;
 }
 
 .dashboard-card-stage-pill {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
-  background-color: var(--color-surface-muted);
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border);
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  background-color: #f8fafc;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 1px solid #e2e8f0;
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
 .dashboard-card-stage-pill.active {
-  background-color: var(--color-action-primary);
-  color: var(--color-text-inverse);
-  border-color: var(--color-action-primary);
-  font-weight: var(--font-weight-medium);
+  background-color: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+  font-weight: 600;
 }
 
 .dashboard-card-title {
-  font-size: var(--font-size-lg); /* 16px */
-  font-weight: var(--font-weight-semibold); /* 600 */
-  color: var(--color-text-primary);
-  margin-bottom: 2px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 3px;
 }
 
 .dashboard-card-desc {
-  font-size: var(--font-size-sm); /* 12px */
-  color: var(--color-text-secondary);
-  line-height: var(--line-height-normal);
-  margin-bottom: var(--space-2);
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.45;
+  margin-bottom: 12px;
 }
 
 .dashboard-card-metrics {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   flex-wrap: wrap;
   margin-top: auto;
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
 }
 
 .dashboard-metric-badge {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
-  background-color: var(--color-surface-subtle);
-  padding: 2px 8px;
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--color-border);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #1e293b;
+  background-color: #f8fafc;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
 }
 
 .dashboard-card-status-line {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: var(--space-2);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
-  font-weight: var(--font-weight-regular);
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: #94a3b8;
+  font-weight: 400;
 }
 
 .dashboard-card.active .dashboard-card-status-line {
-  color: var(--color-text-primary);
-  font-weight: var(--font-weight-medium);
+  color: #111827;
+  font-weight: 500;
 }
 
-/* Data Section Container — Follows Table/Panel container rules (Section 11.1) */
+/* Data Section Container — Seamlessly merged with active card */
 .dashboard-data-container {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-subtle);
-  overflow: hidden;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  position: relative;
+  z-index: 5;
+  overflow: visible;
 }
 
 /* Embedded content normalization */
 .dashboard-embedded-content .page-content {
-  padding: var(--space-4) var(--space-5);
+  padding: 28px 32px;
   max-width: 100%;
 }
 
 @media (max-width: 900px) {
   .dashboard-cards-grid {
     grid-template-columns: 1fr;
-    margin-bottom: var(--space-4);
+    gap: 12px;
+  }
+  .dashboard-card:not(.active) {
+    margin-bottom: 0;
+  }
+  .dashboard-card.active {
+    margin-bottom: 0;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 16px;
+  }
+  .dashboard-data-container {
+    border-radius: 16px !important;
+    margin-top: 16px;
   }
 }
+
