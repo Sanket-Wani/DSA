@@ -3,15 +3,12 @@ import {
   FileText,
   Banknote,
   BookOpen,
-  ShieldCheck,
   Check
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext.js';
 import { apiRequest } from '../api/client.js';
 import { FileLoggedIn } from './FileLoggedIn.js';
 import { Disbursements } from './Disbursements.js';
 import { Accounts } from './Accounts.js';
-import { FileApprove } from './FileApprove.js';
 
 export type DashboardCardType = 'files' | 'disbursements' | 'accounts';
 
@@ -20,17 +17,12 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
-  const { isSuperadmin } = useAuth();
-  // Default to 'files' so the merged card view is active and visible immediately
+  // Default to 'files' so workspace data is displayed immediately
   const [selectedCard, setSelectedCard] = useState<DashboardCardType>(initialCard || 'files');
-
-  // Sub-tab inside File Logged-in card (File List vs Superadmin File Approve)
-  const [fileSubTab, setFileSubTab] = useState<'files' | 'approvals'>('files');
 
   // Live Metrics for the 3 Cards
   const [metrics, setMetrics] = useState({
     totalFiles: 0,
-    pendingApprovals: 0,
     disbursedFilesCount: 0,
     totalDisbursedAmount: 0,
     accountsCount: 0
@@ -38,11 +30,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
 
   const fetchMetrics = async () => {
     try {
-      const [filesRes, disbRes, accRes, eligibleRes] = await Promise.allSettled([
+      const [filesRes, disbRes, accRes] = await Promise.allSettled([
         apiRequest<{ pagination: { total: number } }>('/api/files?limit=1'),
         apiRequest<{ fileDisbursements: Array<{ total_disbursed_amount: number }> }>('/api/disbursements'),
-        apiRequest<{ accounts: any[] }>('/api/accounts'),
-        isSuperadmin ? apiRequest<{ files: any[] }>('/api/files/eligible') : Promise.resolve({ files: [] })
+        apiRequest<{ accounts: any[] }>('/api/accounts')
       ]);
 
       const totalFiles = filesRes.status === 'fulfilled' ? filesRes.value?.pagination?.total || 0 : 0;
@@ -61,13 +52,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
         ? accRes.value.accounts.length
         : 0;
 
-      const pendingApprovals = eligibleRes.status === 'fulfilled' && Array.isArray(eligibleRes.value?.files)
-        ? eligibleRes.value.files.length
-        : 0;
-
       setMetrics({
         totalFiles,
-        pendingApprovals,
         disbursedFilesCount,
         totalDisbursedAmount,
         accountsCount
@@ -79,23 +65,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
 
   useEffect(() => {
     fetchMetrics();
-  }, [isSuperadmin]);
+  }, []);
 
   return (
     <div className="page-content">
-      {/* Dashboard Top Header */}
-      <div className="page-header" style={{ marginBottom: '16px' }}>
+      {/* Dashboard Heading Row (Section 8.1) */}
+      <div className="page-header" style={{ marginBottom: 'var(--space-4)' }}>
         <div>
           <h1 className="page-title">Dashboard</h1>
           <div className="page-subtitle">
-            Centralized operational deck — Click any card to switch the merged active workspace below.
+            Overview of loan files, disbursements, and accounts ledger.
           </div>
         </div>
       </div>
 
       <div className="dashboard-deck">
-        {/* The 3 Big Cards in a Row */}
-        <div className="dashboard-cards-grid" role="tablist" aria-label="Dashboard Pipeline Modules">
+        {/* The 3 Cards Row */}
+        <div className="dashboard-cards-grid" role="tablist" aria-label="Dashboard Modules">
           
           {/* Card 1: File Logged-in */}
           <div
@@ -112,18 +98,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
             }}
           >
             <div className="dashboard-card-top">
-              <div className="dashboard-card-icon-badge theme-files">
-                <FileText size={20} />
+              <div className="dashboard-card-icon-badge">
+                <FileText size={16} />
               </div>
               <span className={`dashboard-card-stage-pill ${selectedCard === 'files' ? 'active' : ''}`}>
-                {selectedCard === 'files' ? 'Active View' : 'Stage 1'}
+                {selectedCard === 'files' ? 'Active' : 'Stage 1'}
               </span>
             </div>
 
             <div>
               <div className="dashboard-card-title">File Logged-in</div>
               <div className="dashboard-card-desc">
-                Register new loan files, manage client details, bank sanctions, and lead processing.
+                Register new loan files, manage client details, and bank sanctions.
               </div>
             </div>
 
@@ -131,15 +117,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
               <span className="dashboard-metric-badge">
                 {metrics.totalFiles} Total Files
               </span>
-              {isSuperadmin && metrics.pendingApprovals > 0 && (
-                <span className="dashboard-metric-badge highlight" title="Files awaiting Superadmin decision">
-                  ⚠️ {metrics.pendingApprovals} To Approve
-                </span>
-              )}
             </div>
 
             <div className="dashboard-card-status-line">
-              <span>{selectedCard === 'files' ? 'Merged with active workspace below' : 'Click to view file records'}</span>
+              <span>{selectedCard === 'files' ? 'Showing data below' : 'Click to view file records'}</span>
               {selectedCard === 'files' && <Check size={14} />}
             </div>
           </div>
@@ -159,18 +140,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
             }}
           >
             <div className="dashboard-card-top">
-              <div className="dashboard-card-icon-badge theme-disbursements">
-                <Banknote size={20} />
+              <div className="dashboard-card-icon-badge">
+                <Banknote size={16} />
               </div>
               <span className={`dashboard-card-stage-pill ${selectedCard === 'disbursements' ? 'active' : ''}`}>
-                {selectedCard === 'disbursements' ? 'Active View' : 'Stage 2'}
+                {selectedCard === 'disbursements' ? 'Active' : 'Stage 2'}
               </span>
             </div>
 
             <div>
               <div className="dashboard-card-title">Disbursements</div>
               <div className="dashboard-card-desc">
-                Record single or multi-tranche loan disbursements against verified client files.
+                Record single or multi-tranche loan disbursements against client files.
               </div>
             </div>
 
@@ -179,14 +160,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
                 {metrics.disbursedFilesCount} Disbursed Files
               </span>
               {metrics.totalDisbursedAmount > 0 && (
-                <span className="dashboard-metric-badge" style={{ color: '#047857', borderColor: '#A7F3D0' }}>
+                <span className="dashboard-metric-badge">
                   ₹{metrics.totalDisbursedAmount.toLocaleString('en-IN')}
                 </span>
               )}
             </div>
 
             <div className="dashboard-card-status-line">
-              <span>{selectedCard === 'disbursements' ? 'Merged with active workspace below' : 'Click to view disbursements'}</span>
+              <span>{selectedCard === 'disbursements' ? 'Showing data below' : 'Click to view disbursements'}</span>
               {selectedCard === 'disbursements' && <Check size={14} />}
             </div>
           </div>
@@ -206,18 +187,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
             }}
           >
             <div className="dashboard-card-top">
-              <div className="dashboard-card-icon-badge theme-accounts">
-                <BookOpen size={20} />
+              <div className="dashboard-card-icon-badge">
+                <BookOpen size={16} />
               </div>
               <span className={`dashboard-card-stage-pill ${selectedCard === 'accounts' ? 'active' : ''}`}>
-                {selectedCard === 'accounts' ? 'Active View' : 'Stage 3'}
+                {selectedCard === 'accounts' ? 'Active' : 'Stage 3'}
               </span>
             </div>
 
             <div>
               <div className="dashboard-card-title">Accounts</div>
               <div className="dashboard-card-desc">
-                Collections ledger tracking received taxable value, GST payments, and TDS recovery.
+                Collections ledger tracking received taxable value, GST, and TDS recovery.
               </div>
             </div>
 
@@ -228,57 +209,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
             </div>
 
             <div className="dashboard-card-status-line">
-              <span>{selectedCard === 'accounts' ? 'Merged with active workspace below' : 'Click to view accounts ledger'}</span>
+              <span>{selectedCard === 'accounts' ? 'Showing data below' : 'Click to view accounts ledger'}</span>
               {selectedCard === 'accounts' && <Check size={14} />}
             </div>
           </div>
 
         </div>
 
-        {/* Merged Section Container — Seamlessly connected to the active card above */}
+        {/* Data Section Container — Separated with 24px space, thin neutral border, no black outline */}
         <div
-          className={`dashboard-merged-container active-card-${selectedCard}`}
+          className="dashboard-data-container"
           role="tabpanel"
           aria-label={`${selectedCard} workspace`}
         >
-          {/* Sub-Tabs for File Logged-in if Superadmin */}
-          {selectedCard === 'files' && isSuperadmin && (
-            <div className="dashboard-section-subnav">
-              <div className="dashboard-section-tabs">
-                <button
-                  className={`dashboard-section-tab-btn ${fileSubTab === 'files' ? 'active' : ''}`}
-                  onClick={() => setFileSubTab('files')}
-                >
-                  File Registry
-                </button>
-                <button
-                  className={`dashboard-section-tab-btn ${fileSubTab === 'approvals' ? 'active' : ''}`}
-                  onClick={() => setFileSubTab('approvals')}
-                >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <ShieldCheck size={12} />
-                    Approvals {metrics.pendingApprovals > 0 ? `(${metrics.pendingApprovals})` : ''}
-                  </span>
-                </button>
-              </div>
-              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)' }}>
-                {fileSubTab === 'files' ? 'Showing all client loan dossiers' : 'Superadmin decision review queue'}
-              </div>
-            </div>
-          )}
-
-          {/* Section Embedded Content */}
           <div className="dashboard-embedded-content">
-            {selectedCard === 'files' && (
-              fileSubTab === 'approvals' && isSuperadmin ? (
-                <FileApprove />
-              ) : (
-                <FileLoggedIn />
-              )
-            )}
-
+            {selectedCard === 'files' && <FileLoggedIn />}
             {selectedCard === 'disbursements' && <Disbursements />}
-
             {selectedCard === 'accounts' && <Accounts />}
           </div>
         </div>
