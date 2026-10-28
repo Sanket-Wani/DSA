@@ -215,11 +215,18 @@ router.get('/tax-rates', (req, res) => {
 
 router.post('/tax-rates/calculate', (req, res) => {
   try {
-    const { amount, sac, firm_id, client_gstin } = req.body;
+    const { amount, sac, firm_id, client_gstin, gst_type, gstType } = req.body;
     if (amount === undefined || !sac || !firm_id) {
       return res.status(400).json({ error: 'Amount, SAC code, and Firm ID are required for calculation' });
     }
-    const calculation = calculateGst(Number(amount), String(sac), Number(firm_id), String(client_gstin || ''));
+    const resolvedGstType = gst_type || gstType;
+    const calculation = calculateGst(
+      Number(amount),
+      String(sac),
+      Number(firm_id),
+      String(client_gstin || ''),
+      resolvedGstType as 'intra' | 'inter' | undefined
+    );
     res.json({ calculation });
   } catch (err: any) {
     res.status(400).json({ error: err.message });

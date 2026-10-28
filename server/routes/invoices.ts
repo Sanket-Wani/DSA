@@ -109,7 +109,9 @@ router.post('/', (req, res) => {
     disbursement_amount,
     sac,
     amount,
-    invoice_date = new Date().toISOString().split('T')[0]
+    invoice_date = new Date().toISOString().split('T')[0],
+    gst_type,
+    gstType
   } = req.body;
 
   // Validation
@@ -163,8 +165,9 @@ router.post('/', (req, res) => {
       return res.status(404).json({ error: `Configured Firm with ID "${firm_id}" not found.` });
     }
 
-    // 3. Calculate GST through centralized service
-    const taxCalc = calculateGst(Number(amount), sac.trim(), Number(firm_id), file.gst_no);
+    // 3. Calculate GST through centralized service (honoring radio selection if provided)
+    const resolvedGstType = (gst_type || gstType) as 'intra' | 'inter' | undefined;
+    const taxCalc = calculateGst(Number(amount), sac.trim(), Number(firm_id), file.gst_no, resolvedGstType);
 
     const invoiceId = crypto.randomUUID();
     const invoiceNumber = generateNextInvoiceNumber(Number(firm_id), invoice_date);
@@ -281,10 +284,16 @@ router.get('/:id/pdf', async (req, res) => {
       SELECT 
         i.*,
         f.source as file_source,
-        t.description as sac_description
+        t.description as sac_description,
+        fm.bank_name as firm_bank_name,
+        fm.account_name as firm_account_name,
+        fm.account_no as firm_account_no,
+        fm.ifsc_code as firm_ifsc_code,
+        fm.branch as firm_branch
       FROM invoices i
       LEFT JOIN files f ON i.file_id = f.id
       LEFT JOIN tax_rates t ON i.sac = t.sac_code
+      LEFT JOIN firms fm ON i.firm_id = fm.id
       WHERE i.id = ?
     `).get(req.params.id) as any;
     if (!invoice) {

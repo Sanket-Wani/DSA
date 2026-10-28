@@ -113,18 +113,42 @@ export function runMigration() {
         `);
       }
 
-      // 5. Migrate Firms to Mavin Credits & Vinayak Associates
+      // 5. Migrate Firms to Mavin Credits & Vinayak Associates with Bank Details
+      const firmCols = db.prepare("PRAGMA table_info(firms)").all() as any[];
+      if (!firmCols.some(c => c.name === 'bank_name')) {
+        db.exec("ALTER TABLE firms ADD COLUMN bank_name TEXT");
+      }
+      if (!firmCols.some(c => c.name === 'account_name')) {
+        db.exec("ALTER TABLE firms ADD COLUMN account_name TEXT");
+      }
+      if (!firmCols.some(c => c.name === 'account_no')) {
+        db.exec("ALTER TABLE firms ADD COLUMN account_no TEXT");
+      }
+      if (!firmCols.some(c => c.name === 'ifsc_code')) {
+        db.exec("ALTER TABLE firms ADD COLUMN ifsc_code TEXT");
+      }
+      if (!firmCols.some(c => c.name === 'branch')) {
+        db.exec("ALTER TABLE firms ADD COLUMN branch TEXT");
+      }
+
       const insertFirm = db.prepare(`
-        INSERT INTO firms (id, firm_name, gstin, state, state_code, address, is_active)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO firms (id, firm_name, gstin, state, state_code, address, is_active, bank_name, account_name, account_no, ifsc_code, branch)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           firm_name = excluded.firm_name,
           gstin = excluded.gstin,
           state = excluded.state,
           state_code = excluded.state_code,
           address = excluded.address,
-          is_active = excluded.is_active
+          is_active = excluded.is_active,
+          bank_name = excluded.bank_name,
+          account_name = excluded.account_name,
+          account_no = excluded.account_no,
+          ifsc_code = excluded.ifsc_code,
+          branch = excluded.branch
       `);
+
+      const unifiedOfficeAddress = 'Office No. 502, Varun Capital, Off J. M. Road, Shivajinagar, Pune – 411005';
 
       insertFirm.run(
         1,
@@ -132,8 +156,13 @@ export function runMigration() {
         '27AAUCM0275A1ZH',
         'Maharashtra',
         '27',
-        'Office No. 502, Varun Capital, Off J. M. Road, Shivajinagar, Pune – 411005',
-        1
+        unifiedOfficeAddress,
+        1,
+        'HDFC Bank',
+        'Mavin Credit Consultant Private Limited',
+        '50200012345678',
+        'HDFC0000240',
+        'Shivajinagar, Pune'
       );
       insertFirm.run(
         2,
@@ -141,8 +170,13 @@ export function runMigration() {
         '27AABCV5544K1Z8',
         'Maharashtra',
         '27',
-        'Office No. 101, Vinayak Chambers, Near Swargate, Pune – 411030',
-        1
+        unifiedOfficeAddress,
+        1,
+        'ICICI Bank',
+        'Vinayak Associates',
+        '000405001234',
+        'ICIC0000004',
+        'Shivajinagar, Pune'
       );
 
       db.prepare('DELETE FROM firms WHERE id NOT IN (1, 2)').run();
@@ -152,17 +186,17 @@ export function runMigration() {
         UPDATE invoices 
         SET firm_name_snapshot = 'Mavin Credits',
             firm_gstin_snapshot = '27AAUCM0275A1ZH',
-            firm_address_snapshot = 'Office No. 502, Varun Capital, Off J. M. Road, Shivajinagar, Pune – 411005'
+            firm_address_snapshot = ?
         WHERE firm_id = 1 OR firm_name_snapshot LIKE '%Apex%'
-      `).run();
+      `).run(unifiedOfficeAddress);
 
       db.prepare(`
         UPDATE invoices 
         SET firm_name_snapshot = 'Vinayak Associates',
             firm_gstin_snapshot = '27AABCV5544K1Z8',
-            firm_address_snapshot = 'Office No. 101, Vinayak Chambers, Near Swargate, Pune – 411030'
+            firm_address_snapshot = ?
         WHERE firm_id = 2 OR firm_name_snapshot LIKE '%Summit%'
-      `).run();
+      `).run(unifiedOfficeAddress);
 
       // 6. Migrate user emails to @vinayakassociates.in domain
       db.prepare(`

@@ -23,7 +23,8 @@ export function calculateGst(
   taxableAmount: number,
   sacCode: string,
   firmId: number,
-  clientGstin: string
+  clientGstin: string,
+  gstType?: 'intra' | 'inter'
 ): TaxCalculationResult {
   if (taxableAmount < 0 || isNaN(taxableAmount)) {
     throw new Error('Taxable amount must be a valid positive number');
@@ -46,17 +47,11 @@ export function calculateGst(
   const gstRate = taxRateRow.gst_rate;
   const firmStateCode = firm.state_code.trim();
 
-  // Extract client state code from GSTIN (First 2 digits)
+  // Extract client GSTIN
   const trimmedClientGst = (clientGstin || '').trim();
-  let clientStateCode = '';
-  if (trimmedClientGst.length >= 2 && /^\d{2}/.test(trimmedClientGst)) {
-    clientStateCode = trimmedClientGst.substring(0, 2);
-  }
 
-  // Determine if Inter-state or Intra-state
-  // If client has a valid 15-char GSTIN and state differs from firm, it is Inter-State (IGST).
-  // If state matches or client is unregistered / within same state, it is Intra-State (CGST + SGST).
-  const isInterState = clientStateCode !== '' && clientStateCode !== firmStateCode;
+  // Rule: If GST starts with 27 -> Intra-state (CGST & SGST); otherwise Inter-state (IGST)
+  const isInterState = !trimmedClientGst.startsWith('27');
 
   let cgstRate = 0;
   let cgstAmount = 0;

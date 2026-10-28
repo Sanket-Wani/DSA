@@ -34,6 +34,11 @@ export interface InvoicePdfData {
   total_amount: number;
   file_source?: string;
   sac_description?: string;
+  firm_bank_name?: string;
+  firm_account_name?: string;
+  firm_account_no?: string;
+  firm_ifsc_code?: string;
+  firm_branch?: string;
 }
 
 /**
@@ -116,10 +121,15 @@ export function generateInvoicePdf(invoice: InvoicePdfData): Promise<Buffer> {
       // 1. Top Logo / Header (Right side)
       const isVinayak = (invoice.firm_name_snapshot || '').toLowerCase().includes('vinayak');
       if (isVinayak) {
-        doc.fontSize(15).font('Helvetica-Bold').fillColor('#1e3a8a');
-        doc.text('VINAYAK ASSOCIATES', 340, 40, { width: 215, align: 'right' });
-        doc.fontSize(8).font('Helvetica').fillColor('#64748b');
-        doc.text('Financial Services & Syndication', 340, 58, { width: 215, align: 'right' });
+        const vinayakLogoPath = path.join(__dirname, '..', 'assets', 'vinayak_associates_logo.png');
+        if (fs.existsSync(vinayakLogoPath)) {
+          doc.image(vinayakLogoPath, 395, 18, { width: 160 });
+        } else {
+          doc.fontSize(15).font('Helvetica-Bold').fillColor('#1e3a8a');
+          doc.text('VINAYAK ASSOCIATES', 340, 40, { width: 215, align: 'right' });
+          doc.fontSize(8).font('Helvetica').fillColor('#64748b');
+          doc.text('Financial Services & Syndication', 340, 58, { width: 215, align: 'right' });
+        }
       } else {
         const logoPath = path.join(__dirname, '..', 'assets', 'mavin_credit_logo.png');
         if (fs.existsSync(logoPath)) {
@@ -150,11 +160,7 @@ export function generateInvoicePdf(invoice: InvoicePdfData): Promise<Buffer> {
       doc.fontSize(9).font('Helvetica-Bold').fillColor('#000000');
       doc.text(supplierName, leftX, supplierStartY + 16, { width: 330 });
 
-      const supplierAddr = invoice.firm_address_snapshot || (
-        isVinayak 
-          ? 'Office No. 101, Vinayak Chambers, Near Swargate, Pune – 411030'
-          : 'Office No. 502, Varun Capital,\nOff J. M. Road, Shivajinagar, Pune – 411005'
-      );
+      const supplierAddr = 'Office No. 502, Varun Capital,\nOff J. M. Road, Shivajinagar, Pune – 411005';
       doc.fontSize(9).font('Helvetica').fillColor('#000000');
       doc.text(supplierAddr, leftX, supplierStartY + 29, { width: 330 });
 
@@ -313,11 +319,11 @@ export function generateInvoicePdf(invoice: InvoicePdfData): Promise<Buffer> {
         doc.rect(subTableX + subLabelWidth, curY, subValWidth, subRowHeight).fillColor('#FFFFFF').fill();
         doc.strokeColor('#202020').lineWidth(0.5).rect(subTableX + subLabelWidth, curY, subValWidth, subRowHeight).stroke();
 
-        // Value text (Arial 9pt regular, center-aligned in Excel)
+        // Value text (Arial 9pt regular, left-aligned)
         doc.fontSize(9).font('Helvetica').fillColor('#000000');
-        doc.text(String(row.val), subTableX + subLabelWidth, curY + 4, {
-          width: subValWidth,
-          align: 'center'
+        doc.text(String(row.val), subTableX + subLabelWidth + 8, curY + 4, {
+          width: subValWidth - 16,
+          align: 'left'
         });
       });
 
@@ -328,24 +334,31 @@ export function generateInvoicePdf(invoice: InvoicePdfData): Promise<Buffer> {
       // Top line of summary section
       doc.strokeColor('#202020').lineWidth(0.5).moveTo(leftX, summaryStartY).lineTo(rightX, summaryStartY).stroke();
 
+      // Only include the selected type of GST (exclude non-selected)
+      const isIgst = (invoice.igst_amount || 0) > 0 || ((invoice.cgst_amount || 0) === 0 && (invoice.sgst_amount || 0) === 0 && (invoice.igst_rate || 0) > 0);
+
       const summaryRows = [
         {
           label: 'Sub- Total',
           amount: invoice.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-        },
-        {
-          label: `CGST ${invoice.cgst_rate || 9}%`,
-          amount: invoice.cgst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-        },
-        {
-          label: `SGST ${invoice.sgst_rate || 9}%`,
-          amount: invoice.sgst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-        },
-        {
-          label: `IGST ${invoice.igst_rate || 0}%`,
-          amount: invoice.igst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         }
       ];
+
+      if (isIgst) {
+        summaryRows.push({
+          label: `IGST ${invoice.igst_rate || 18}%`,
+          amount: invoice.igst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        });
+      } else {
+        summaryRows.push({
+          label: `CGST ${invoice.cgst_rate || 9}%`,
+          amount: invoice.cgst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        });
+        summaryRows.push({
+          label: `SGST ${invoice.sgst_rate || 9}%`,
+          amount: invoice.sgst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        });
+      }
 
       summaryRows.forEach((item, idx) => {
         const curY = summaryStartY + idx * summaryRowHeight;
@@ -371,16 +384,16 @@ export function generateInvoicePdf(invoice: InvoicePdfData): Promise<Buffer> {
         });
       });
 
-      // Spacing Row 43 bottom line
-      const row43EndY = summaryStartY + 4 * summaryRowHeight + 8;
+      // Spacing Row bottom line
+      const rowSpacingEndY = summaryStartY + summaryRows.length * summaryRowHeight + 8;
       doc.strokeColor('#202020').lineWidth(0.5);
-      doc.moveTo(leftX, summaryStartY + 4 * summaryRowHeight).lineTo(leftX, row43EndY).stroke();
-      doc.moveTo(colAmtX, summaryStartY + 4 * summaryRowHeight).lineTo(colAmtX, row43EndY).stroke();
-      doc.moveTo(rightX, summaryStartY + 4 * summaryRowHeight).lineTo(rightX, row43EndY).stroke();
-      doc.moveTo(leftX, row43EndY).lineTo(rightX, row43EndY).stroke();
+      doc.moveTo(leftX, summaryStartY + summaryRows.length * summaryRowHeight).lineTo(leftX, rowSpacingEndY).stroke();
+      doc.moveTo(colAmtX, summaryStartY + summaryRows.length * summaryRowHeight).lineTo(colAmtX, rowSpacingEndY).stroke();
+      doc.moveTo(rightX, summaryStartY + summaryRows.length * summaryRowHeight).lineTo(rightX, rowSpacingEndY).stroke();
+      doc.moveTo(leftX, rowSpacingEndY).lineTo(rightX, rowSpacingEndY).stroke();
 
       // 7. Row 44: Grand Total Bar (Shaded #F2F2F2 in Excel)
-      const grandTotalY = row43EndY;
+      const grandTotalY = rowSpacingEndY;
       const grandTotalHeight = 22;
 
       doc.rect(leftX, grandTotalY, tableWidth, grandTotalHeight).fillColor('#F2F2F2').fill();
@@ -410,14 +423,55 @@ export function generateInvoicePdf(invoice: InvoicePdfData): Promise<Buffer> {
       // 8. Row 45: Amount in Words (=SpellNumber(J44))
       const spellNumberY = grandTotalY + grandTotalHeight + 12;
       const wordsText = numberToWordsIndian(invoice.total_amount);
-      doc.fontSize(11).font('Helvetica').fillColor('#000000');
+      doc.fontSize(10.5).font('Helvetica').fillColor('#000000');
       doc.text(wordsText, leftX, spellNumberY, { width: tableWidth });
 
+      // 9. Bank Details display fields at bottom left
+      const bankBoxY = spellNumberY + 24;
+      const bankBoxWidth = 275;
+      const bankBoxHeight = 84;
+
+      doc.rect(leftX, bankBoxY, bankBoxWidth, bankBoxHeight).fillColor('#F9FAFB').fill();
+      doc.strokeColor('#CBD5E1').lineWidth(0.5).rect(leftX, bankBoxY, bankBoxWidth, bankBoxHeight).stroke();
+
+      doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#1E293B');
+      doc.text(`BANK DETAILS (${supplierName.toUpperCase()})`, leftX + 8, bankBoxY + 6);
+      doc.strokeColor('#E2E8F0').lineWidth(0.5).moveTo(leftX + 8, bankBoxY + 17).lineTo(leftX + bankBoxWidth - 8, bankBoxY + 17).stroke();
+
+      const bankName = invoice.firm_bank_name || (isVinayak ? 'ICICI Bank' : 'HDFC Bank');
+      const acName = invoice.firm_account_name || (isVinayak ? 'Vinayak Associates' : 'Mavin Credit Consultant Private Limited');
+      const acNo = invoice.firm_account_no || (isVinayak ? '000405001234' : '50200012345678');
+      const ifsc = invoice.firm_ifsc_code || (isVinayak ? 'ICIC0000004' : 'HDFC0000240');
+      const branch = invoice.firm_branch || 'Shivajinagar, Pune';
+
+      const bankFields = [
+        { label: 'Bank Name:', val: bankName },
+        { label: 'A/c Name:', val: acName },
+        { label: 'A/c No.:', val: acNo },
+        { label: 'IFSC Code:', val: ifsc },
+        { label: 'Branch:', val: branch }
+      ];
+
+      bankFields.forEach((bf, bIdx) => {
+        const lineY = bankBoxY + 21 + bIdx * 11.5;
+        doc.fontSize(7.5).font('Helvetica-Bold').fillColor('#64748B');
+        doc.text(bf.label, leftX + 8, lineY, { width: 70 });
+        doc.font('Helvetica').fillColor('#0F172A');
+        doc.text(bf.val, leftX + 80, lineY, { width: bankBoxWidth - 88 });
+      });
+
+      // Signatory block at bottom right
+      doc.fontSize(9).font('Helvetica-Bold').fillColor('#000000');
+      doc.text(`For ${supplierName}`, rightX - 170, bankBoxY + 12, { width: 170, align: 'right' });
+      doc.strokeColor('#202020').lineWidth(0.5).moveTo(rightX - 150, bankBoxY + 68).lineTo(rightX, bankBoxY + 68).stroke();
+      doc.fontSize(8.5).font('Helvetica').fillColor('#333333');
+      doc.text('Authorized Signatory', rightX - 150, bankBoxY + 72, { width: 150, align: 'center' });
+
       // Clean footer note at the bottom of the page
-      const pageFooterY = 770;
+      const pageFooterY = 780;
       doc.strokeColor('#E0E0E0').lineWidth(0.5).moveTo(leftX, pageFooterY).lineTo(rightX, pageFooterY).stroke();
       doc.fontSize(8).font('Helvetica').fillColor('#777777');
-      doc.text('This is a computer-generated tax invoice verified by Mavin Credit Consultant Private Limited.', leftX, pageFooterY + 6);
+      doc.text(`This is a computer-generated tax invoice verified by ${supplierName}.`, leftX, pageFooterY + 6);
       doc.text('Authorized Signatory', rightX - 120, pageFooterY + 6, { width: 120, align: 'right' });
 
       doc.end();

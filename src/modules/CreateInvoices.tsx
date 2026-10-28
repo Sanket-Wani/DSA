@@ -159,7 +159,11 @@ export const CreateInvoices: React.FC = () => {
   };
 
   // Re-calculate GST whenever taxableAmount, sacCode, selectedFirmId, or buyerGstin changes
+  // Statutory rule: If GST starts with 27 -> CGST (9%) + SGST (9%), otherwise IGST (18%)
   useEffect(() => {
+    // When in view-only mode (viewing a saved invoice), preserve the exact loaded tax calculations
+    if (activeInvoiceId) return;
+
     const calcTax = async () => {
       const amt = Number(taxableAmount);
       if (!amt || isNaN(amt) || amt <= 0 || !sacCode.trim() || !selectedFirmId) {
@@ -181,27 +185,23 @@ export const CreateInvoices: React.FC = () => {
         setTaxPreview(res.calculation);
         setTaxError(null);
       } catch (err: any) {
-        // Fallback to standard 18% calculation if offline / calculating
-        const isInterState =
-          buyerGstin && buyerGstin.length >= 2 && selectedFirm
-            ? buyerGstin.substring(0, 2) !== selectedFirm.state_code
-            : false;
-
+        // Fallback rule: if GST starts with 27 -> CGST 9% + SGST 9%, otherwise IGST 18%
+        const isInter = !buyerGstin.trim().startsWith('27');
         const rate = 18;
-        const totalTax = Math.round(amt * 0.18);
-        const halfTax = Math.round(totalTax / 2);
+        const totalTax = Math.round(amt * 0.18 * 100) / 100;
+        const halfTax = Math.round(amt * 0.09 * 100) / 100;
 
         setTaxPreview({
           taxableAmount: amt,
           sacCode,
           gstRate: rate,
-          isInterState,
-          cgstRate: isInterState ? 0 : 9,
-          cgstAmount: isInterState ? 0 : halfTax,
-          sgstRate: isInterState ? 0 : 9,
-          sgstAmount: isInterState ? 0 : halfTax,
-          igstRate: isInterState ? 18 : 0,
-          igstAmount: isInterState ? totalTax : 0,
+          isInterState: isInter,
+          cgstRate: isInter ? 0 : 9,
+          cgstAmount: isInter ? 0 : halfTax,
+          sgstRate: isInter ? 0 : 9,
+          sgstAmount: isInter ? 0 : halfTax,
+          igstRate: isInter ? 18 : 0,
+          igstAmount: isInter ? totalTax : 0,
           totalTax,
           totalAmount: amt + totalTax
         });
@@ -215,8 +215,12 @@ export const CreateInvoices: React.FC = () => {
   // Selected Firm details
   const selectedFirm = firms.find(f => String(f.id) === selectedFirmId);
 
-  // Form validation
+  // View-Only mode when viewing saved record
+  const isViewOnly = Boolean(activeInvoiceId);
+
+  // Form validation (disabled if in view-only mode)
   const isFormValid =
+    !isViewOnly &&
     lookupFileId.trim() !== '' &&
     selectedFirmId !== '' &&
     loanAccountNo.trim() !== '' &&
@@ -230,7 +234,7 @@ export const CreateInvoices: React.FC = () => {
 
   // Save invoice handler
   const handleSaveInvoice = async () => {
-    if (!isFormValid) return;
+    if (!isFormValid || isViewOnly) return;
 
     setIsSaving(true);
     setSaveError(null);
@@ -267,7 +271,8 @@ export const CreateInvoices: React.FC = () => {
     }
   };
 
-  const handleDownloadPdf = (invoiceId: string) => {
+  const handleDownloadPdf = (invoiceId?: string | null) => {
+    if (!invoiceId) return;
     window.open(`/api/invoices/${invoiceId}/pdf`, '_blank');
   };
 
@@ -311,7 +316,7 @@ export const CreateInvoices: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Reset to create a new invoice
+  // Reset to create a new invoice (Editable mode)
   const handleResetForm = () => {
     setLookupFileId('');
     setFileData(null);
@@ -355,15 +360,16 @@ export const CreateInvoices: React.FC = () => {
 
   // Amounts for display
   const subTotalAmount = taxPreview ? taxPreview.taxableAmount : Number(taxableAmount) || 0;
+  const isInterState = taxPreview ? taxPreview.isInterState : !buyerGstin.trim().startsWith('27');
   const cgstRate = taxPreview ? taxPreview.cgstRate : 9;
-  const cgstAmount = taxPreview ? taxPreview.cgstAmount : Math.round(subTotalAmount * 0.09);
+  const cgstAmount = taxPreview ? taxPreview.cgstAmount : Math.round(subTotalAmount * 0.09 * 100) / 100;
   const sgstRate = taxPreview ? taxPreview.sgstRate : 9;
-  const sgstAmount = taxPreview ? taxPreview.sgstAmount : Math.round(subTotalAmount * 0.09);
-  const igstRate = taxPreview ? taxPreview.igstRate : 0;
-  const igstAmount = taxPreview ? taxPreview.igstAmount : 0;
+  const sgstAmount = taxPreview ? taxPreview.sgstAmount : Math.round(subTotalAmount * 0.09 * 100) / 100;
+  const igstRate = taxPreview ? taxPreview.igstRate : 18;
+  const igstAmount = taxPreview ? taxPreview.igstAmount : Math.round(subTotalAmount * 0.18 * 100) / 100;
   const grandTotalAmount = taxPreview
     ? taxPreview.totalAmount
-    : subTotalAmount + (igstAmount > 0 ? igstAmount : cgstAmount + sgstAmount);
+    : subTotalAmount + (isInterState ? igstAmount : cgstAmount + sgstAmount);
   const amountInWords = numberToWordsIndian(grandTotalAmount);
 
   return (
@@ -388,7 +394,7 @@ export const CreateInvoices: React.FC = () => {
             New Invoice
           </Button>
 
-          {activeInvoiceId ? (
+          {isViewOnly ? (
             <Button
               variant="primary"
               size="md"
@@ -509,34 +515,35 @@ export const CreateInvoices: React.FC = () => {
             >
               Official Built-in Format
             </span>
-            {activeInvoiceId && (
+            {isViewOnly && (
               <span
                 style={{
                   marginLeft: '10px',
                   fontSize: '12px',
-                  fontWeight: 600,
-                  color: '#15803d',
-                  backgroundColor: '#dcfce7',
+                  fontWeight: 700,
+                  color: '#92400e',
+                  backgroundColor: '#fef3c7',
+                  border: '1px solid #fde68a',
                   padding: '5px 12px',
                   borderRadius: '6px'
                 }}
               >
-                Saved Record Active
+                View Only Mode (Saved Invoice #{savedInvoice?.invoice_number})
               </span>
             )}
           </div>
 
           {/* Picture 1: Firm Logo / Branding */}
-          <div style={{ textAlign: 'right' }}>
+          <div style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
             {selectedFirm?.firm_name?.includes('Vinayak') ? (
-              <div style={{ padding: '6px 0' }}>
-                <div style={{ fontSize: '22px', fontWeight: 800, color: '#1e3a8a', letterSpacing: '0.04em' }}>
-                  VINAYAK ASSOCIATES
-                </div>
-                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 500, letterSpacing: '0.02em' }}>
-                  Financial Services & Syndication
-                </div>
-              </div>
+              <img
+                src="/assets/vinayak_associates_logo.png"
+                alt="Vinayak Associates"
+                style={{ height: '145px', maxHeight: '160px', width: 'auto', objectFit: 'contain' }}
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
             ) : (
               <img
                 src="/assets/mavin_credit_logo.png"
@@ -588,17 +595,18 @@ export const CreateInvoices: React.FC = () => {
               <select
                 value={selectedFirmId}
                 onChange={e => setSelectedFirmId(e.target.value)}
+                disabled={isViewOnly}
                 style={{
                   fontWeight: 700,
                   fontSize: '14px',
                   fontFamily: 'Arial, sans-serif',
                   color: '#111827',
                   border: '1px solid #cbd5e1',
-                  backgroundColor: '#f8fafc',
+                  backgroundColor: isViewOnly ? '#f1f5f9' : '#f8fafc',
                   padding: '8px 12px',
                   borderRadius: '6px',
                   width: '100%',
-                  cursor: 'pointer',
+                  cursor: isViewOnly ? 'not-allowed' : 'pointer',
                   height: '40px'
                 }}
                 title="Select Issuing Firm"
@@ -613,7 +621,7 @@ export const CreateInvoices: React.FC = () => {
 
             {/* Firm Address */}
             <div style={{ fontSize: '13px', color: '#374151', lineHeight: '1.6', marginBottom: '6px', whiteSpace: 'pre-line' }}>
-              {selectedFirm ? selectedFirm.address : 'Office No. 502, Varun Capital,\nOff J. M. Road, Shivajinagar, Pune – 411005'}
+              {'Office No. 502, Varun Capital,\nOff J. M. Road, Shivajinagar, Pune – 411005'}
             </div>
 
             {/* Email & Web */}
@@ -649,6 +657,8 @@ export const CreateInvoices: React.FC = () => {
                 type="date"
                 value={invoiceDate}
                 onChange={e => setInvoiceDate(e.target.value)}
+                disabled={isViewOnly}
+                readOnly={isViewOnly}
                 style={{
                   border: '1px solid #cbd5e1',
                   borderRadius: '6px',
@@ -656,7 +666,9 @@ export const CreateInvoices: React.FC = () => {
                   fontSize: '14px',
                   fontFamily: 'Arial, sans-serif',
                   height: '40px',
-                  width: '210px'
+                  width: '210px',
+                  backgroundColor: isViewOnly ? '#f1f5f9' : '#ffffff',
+                  cursor: isViewOnly ? 'default' : 'text'
                 }}
               />
             </div>
@@ -667,22 +679,42 @@ export const CreateInvoices: React.FC = () => {
                 Login ID <span style={{ color: '#dc2626' }}>*</span>
               </span>
               <div style={{ width: '100%', maxWidth: '340px' }}>
-                <FileAutocompleteInput
-                  hideLabel
-                  value={lookupFileId}
-                  onChange={setLookupFileId}
-                  onSelectFile={handleSelectApprovedFile}
-                  placeholder="Select approved account"
-                  inputStyle={{
-                    border: '1px solid #2563eb',
-                    backgroundColor: '#eff6ff',
-                    padding: '8px 12px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    borderRadius: '6px',
-                    height: '40px'
-                  }}
-                />
+                {isViewOnly ? (
+                  <input
+                    type="text"
+                    value={lookupFileId}
+                    readOnly
+                    style={{
+                      border: '1px solid #cbd5e1',
+                      backgroundColor: '#f1f5f9',
+                      padding: '8px 12px',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      height: '40px',
+                      width: '100%',
+                      cursor: 'default',
+                      color: '#1e293b'
+                    }}
+                  />
+                ) : (
+                  <FileAutocompleteInput
+                    hideLabel
+                    value={lookupFileId}
+                    onChange={setLookupFileId}
+                    onSelectFile={handleSelectApprovedFile}
+                    placeholder="Select approved account"
+                    inputStyle={{
+                      border: '1px solid #2563eb',
+                      backgroundColor: '#eff6ff',
+                      padding: '8px 12px',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      height: '40px'
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -711,6 +743,7 @@ export const CreateInvoices: React.FC = () => {
               placeholder="Buyer Company Name (autofilled from Login ID)"
               value={buyerCompany}
               onChange={e => setBuyerCompany(e.target.value)}
+              readOnly={isViewOnly}
               style={{
                 fontWeight: 700,
                 fontSize: '14px',
@@ -720,7 +753,8 @@ export const CreateInvoices: React.FC = () => {
                 borderRadius: '6px',
                 width: '100%',
                 height: '40px',
-                backgroundColor: '#ffffff'
+                backgroundColor: isViewOnly ? '#f8fafc' : '#ffffff',
+                cursor: isViewOnly ? 'default' : 'text'
               }}
             />
 
@@ -730,6 +764,7 @@ export const CreateInvoices: React.FC = () => {
               placeholder="Contact Person (optional)"
               value={buyerContact}
               onChange={e => setBuyerContact(e.target.value)}
+              readOnly={isViewOnly}
               style={{
                 fontSize: '13px',
                 fontFamily: 'Arial, sans-serif',
@@ -738,7 +773,8 @@ export const CreateInvoices: React.FC = () => {
                 borderRadius: '6px',
                 width: '100%',
                 height: '38px',
-                backgroundColor: '#ffffff'
+                backgroundColor: isViewOnly ? '#f8fafc' : '#ffffff',
+                cursor: isViewOnly ? 'default' : 'text'
               }}
             />
 
@@ -750,6 +786,7 @@ export const CreateInvoices: React.FC = () => {
                 placeholder="client@email.com"
                 value={buyerEmail}
                 onChange={e => setBuyerEmail(e.target.value)}
+                readOnly={isViewOnly}
                 style={{
                   fontSize: '13px',
                   fontFamily: 'Arial, sans-serif',
@@ -758,7 +795,8 @@ export const CreateInvoices: React.FC = () => {
                   borderRadius: '6px',
                   width: '100%',
                   height: '38px',
-                  backgroundColor: '#ffffff'
+                  backgroundColor: isViewOnly ? '#f8fafc' : '#ffffff',
+                  cursor: isViewOnly ? 'default' : 'text'
                 }}
               />
             </div>
@@ -771,6 +809,7 @@ export const CreateInvoices: React.FC = () => {
                 placeholder="e.g. 27AAUCS9133P1Z9"
                 value={buyerGstin}
                 onChange={e => setBuyerGstin(e.target.value)}
+                readOnly={isViewOnly}
                 style={{
                   fontSize: '13px',
                   fontWeight: 600,
@@ -780,7 +819,8 @@ export const CreateInvoices: React.FC = () => {
                   borderRadius: '6px',
                   width: '100%',
                   height: '38px',
-                  backgroundColor: '#ffffff'
+                  backgroundColor: isViewOnly ? '#f8fafc' : '#ffffff',
+                  cursor: isViewOnly ? 'default' : 'text'
                 }}
               />
             </div>
@@ -831,6 +871,7 @@ export const CreateInvoices: React.FC = () => {
                 <textarea
                   value={sacDescription}
                   onChange={e => setSacDescription(e.target.value)}
+                  readOnly={isViewOnly}
                   rows={2}
                   style={{
                     width: '100%',
@@ -841,7 +882,8 @@ export const CreateInvoices: React.FC = () => {
                     borderRadius: '6px',
                     padding: '8px 12px',
                     resize: 'none',
-                    backgroundColor: '#f8fafc',
+                    backgroundColor: isViewOnly ? '#f8fafc' : '#f8fafc',
+                    cursor: isViewOnly ? 'default' : 'text',
                     marginBottom: '20px'
                   }}
                   title="Service particulars description"
@@ -871,13 +913,15 @@ export const CreateInvoices: React.FC = () => {
                       placeholder="e.g. Urban Money"
                       value={caseSourced}
                       onChange={e => setCaseSourced(e.target.value)}
+                      readOnly={isViewOnly}
                       style={{
                         width: '100%',
                         border: 'none',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         fontSize: '13px',
                         padding: '8px 12px',
-                        backgroundColor: 'transparent'
+                        backgroundColor: isViewOnly ? '#f8fafc' : 'transparent',
+                        cursor: isViewOnly ? 'default' : 'text'
                       }}
                     />
                   </div>
@@ -894,14 +938,16 @@ export const CreateInvoices: React.FC = () => {
                       placeholder="e.g. HDFC-LAP-882910"
                       value={loanAccountNo}
                       onChange={e => setLoanAccountNo(e.target.value)}
+                      readOnly={isViewOnly}
                       style={{
                         width: '100%',
                         border: 'none',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         fontSize: '13px',
                         padding: '8px 12px',
                         fontWeight: 600,
-                        backgroundColor: '#f8fafc'
+                        backgroundColor: '#f8fafc',
+                        cursor: isViewOnly ? 'default' : 'text'
                       }}
                     />
                   </div>
@@ -918,14 +964,16 @@ export const CreateInvoices: React.FC = () => {
                       placeholder="e.g. MCF-2026-789"
                       value={mcfNo}
                       onChange={e => setMcfNo(e.target.value)}
+                      readOnly={isViewOnly}
                       style={{
                         width: '100%',
                         border: 'none',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         fontSize: '13px',
                         padding: '8px 12px',
                         fontWeight: 600,
-                        backgroundColor: '#f8fafc'
+                        backgroundColor: '#f8fafc',
+                        cursor: isViewOnly ? 'default' : 'text'
                       }}
                     />
                   </div>
@@ -942,13 +990,15 @@ export const CreateInvoices: React.FC = () => {
                       placeholder="e.g. Loan Against Property"
                       value={productName}
                       onChange={e => setProductName(e.target.value)}
+                      readOnly={isViewOnly}
                       style={{
                         width: '100%',
                         border: 'none',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         fontSize: '13px',
                         padding: '8px 12px',
-                        backgroundColor: 'transparent'
+                        backgroundColor: isViewOnly ? '#f8fafc' : 'transparent',
+                        cursor: isViewOnly ? 'default' : 'text'
                       }}
                     />
                   </div>
@@ -966,14 +1016,16 @@ export const CreateInvoices: React.FC = () => {
                       placeholder="0.00"
                       value={disbursementAmount}
                       onChange={e => setDisbursementAmount(e.target.value)}
+                      readOnly={isViewOnly}
                       style={{
                         width: '100%',
                         border: 'none',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         fontSize: '13px',
                         padding: '8px 12px',
                         fontWeight: 600,
-                        backgroundColor: '#f8fafc'
+                        backgroundColor: '#f8fafc',
+                        cursor: isViewOnly ? 'default' : 'text'
                       }}
                     />
                   </div>
@@ -986,6 +1038,7 @@ export const CreateInvoices: React.FC = () => {
               <select
                 value={sacCode}
                 onChange={e => setSacCode(e.target.value)}
+                disabled={isViewOnly}
                 style={{
                   width: '100%',
                   fontSize: '14px',
@@ -994,21 +1047,12 @@ export const CreateInvoices: React.FC = () => {
                   padding: '8px 6px',
                   border: '1px solid #cbd5e1',
                   borderRadius: '6px',
-                  backgroundColor: '#ffffff',
+                  backgroundColor: isViewOnly ? '#f1f5f9' : '#ffffff',
+                  cursor: isViewOnly ? 'not-allowed' : 'pointer',
                   height: '40px'
                 }}
               >
                 <option value="997159">997159</option>
-                <option value="997119">997119</option>
-                <option value="998311">998311</option>
-                {taxRates.map(
-                  t =>
-                    !['997159', '997119', '998311'].includes(t.sac_code) && (
-                      <option key={t.sac_code} value={t.sac_code}>
-                        {t.sac_code}
-                      </option>
-                    )
-                )}
               </select>
             </div>
 
@@ -1021,6 +1065,7 @@ export const CreateInvoices: React.FC = () => {
                 placeholder="0.00"
                 value={taxableAmount}
                 onChange={e => setTaxableAmount(e.target.value)}
+                readOnly={isViewOnly}
                 style={{
                   width: '100%',
                   textAlign: 'right',
@@ -1028,10 +1073,11 @@ export const CreateInvoices: React.FC = () => {
                   fontWeight: 700,
                   fontFamily: 'Arial, sans-serif',
                   padding: '8px 12px',
-                  border: '2px solid #2563eb',
-                  backgroundColor: '#eff6ff',
+                  border: isViewOnly ? '1px solid #cbd5e1' : '2px solid #2563eb',
+                  backgroundColor: isViewOnly ? '#f1f5f9' : '#eff6ff',
                   borderRadius: '6px',
-                  height: '42px'
+                  height: '42px',
+                  cursor: isViewOnly ? 'default' : 'text'
                 }}
                 title="Enter Taxable Commission Value"
               />
@@ -1063,59 +1109,63 @@ export const CreateInvoices: React.FC = () => {
               </div>
             </div>
 
-            {/* CGST */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 220px',
-                borderBottom: '1px solid #e5e7eb',
-                fontSize: '14px',
-                padding: '8px 0'
-              }}
-            >
-              <div style={{ textAlign: 'right', paddingRight: '28px', borderRight: '1px solid #111827' }}>
-                CGST {cgstRate}%
-              </div>
-              <div style={{ textAlign: 'right', paddingRight: '16px' }}>
-                {cgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-            </div>
+            {!isInterState ? (
+              <>
+                {/* CGST */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 220px',
+                    borderBottom: '1px solid #e5e7eb',
+                    fontSize: '14px',
+                    padding: '8px 0'
+                  }}
+                >
+                  <div style={{ textAlign: 'right', paddingRight: '28px', borderRight: '1px solid #111827' }}>
+                    CGST {cgstRate}%
+                  </div>
+                  <div style={{ textAlign: 'right', paddingRight: '16px' }}>
+                    {cgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
 
-            {/* SGST */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 220px',
-                borderBottom: '1px solid #e5e7eb',
-                fontSize: '14px',
-                padding: '8px 0'
-              }}
-            >
-              <div style={{ textAlign: 'right', paddingRight: '28px', borderRight: '1px solid #111827' }}>
-                SGST {sgstRate}%
+                {/* SGST */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 220px',
+                    borderBottom: '1px solid #e5e7eb',
+                    fontSize: '14px',
+                    padding: '8px 0'
+                  }}
+                >
+                  <div style={{ textAlign: 'right', paddingRight: '28px', borderRight: '1px solid #111827' }}>
+                    SGST {sgstRate}%
+                  </div>
+                  <div style={{ textAlign: 'right', paddingRight: '16px' }}>
+                    {sgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* IGST */
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 220px',
+                  borderBottom: '1px solid #e5e7eb',
+                  fontSize: '14px',
+                  padding: '8px 0'
+                }}
+              >
+                <div style={{ textAlign: 'right', paddingRight: '28px', borderRight: '1px solid #111827' }}>
+                  IGST {igstRate || 18}%
+                </div>
+                <div style={{ textAlign: 'right', paddingRight: '16px' }}>
+                  {igstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
               </div>
-              <div style={{ textAlign: 'right', paddingRight: '16px' }}>
-                {sgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-            </div>
-
-            {/* IGST */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 220px',
-                borderBottom: '1px solid #111827',
-                fontSize: '14px',
-                padding: '8px 0'
-              }}
-            >
-              <div style={{ textAlign: 'right', paddingRight: '28px', borderRight: '1px solid #111827' }}>
-                IGST {igstRate}%
-              </div>
-              <div style={{ textAlign: 'right', paddingRight: '16px' }}>
-                {igstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-            </div>
+            )}
 
             {/* Row 44 in Excel: Grand Total Bar (Gray Shaded #F2F2F2) */}
             <div
@@ -1145,21 +1195,107 @@ export const CreateInvoices: React.FC = () => {
           <span>{amountInWords}</span>
         </div>
 
+        {/* Bottom Section: Bank Details at Bottom Left & Signatory at Right */}
+        <div
+          style={{
+            marginTop: '28px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: '32px',
+            flexWrap: 'wrap'
+          }}
+        >
+          {/* Bottom Left: Bank Details Display Fields */}
+          <div
+            style={{
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              padding: '14px 18px',
+              backgroundColor: '#f8fafc',
+              width: '100%',
+              maxWidth: '430px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}
+          >
+            <div
+              style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                color: '#334155',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginBottom: '10px',
+                borderBottom: '1px solid #e2e8f0',
+                paddingBottom: '5px'
+              }}
+            >
+              Bank Details — {selectedFirm?.firm_name || 'Selected Firm'}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '115px 1fr', rowGap: '6px', fontSize: '13px' }}>
+              <span style={{ color: '#64748b', fontWeight: 600 }}>Bank Name:</span>
+              <span style={{ fontWeight: 600, color: '#0f172a' }}>
+                {selectedFirm?.bank_name || (selectedFirm?.firm_name?.includes('Vinayak') ? 'ICICI Bank' : 'HDFC Bank')}
+              </span>
+
+              <span style={{ color: '#64748b', fontWeight: 600 }}>Account Name:</span>
+              <span style={{ fontWeight: 600, color: '#0f172a' }}>
+                {selectedFirm?.account_name || (selectedFirm?.firm_name?.includes('Vinayak') ? 'Vinayak Associates' : 'Mavin Credit Consultant Private Limited')}
+              </span>
+
+              <span style={{ color: '#64748b', fontWeight: 600 }}>Account No.:</span>
+              <span style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>
+                {selectedFirm?.account_no || (selectedFirm?.firm_name?.includes('Vinayak') ? '000405001234' : '50200012345678')}
+              </span>
+
+              <span style={{ color: '#64748b', fontWeight: 600 }}>IFSC Code:</span>
+              <span style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>
+                {selectedFirm?.ifsc_code || (selectedFirm?.firm_name?.includes('Vinayak') ? 'ICIC0000004' : 'HDFC0000240')}
+              </span>
+
+              <span style={{ color: '#64748b', fontWeight: 600 }}>Branch:</span>
+              <span style={{ color: '#0f172a' }}>
+                {selectedFirm?.branch || 'Shivajinagar, Pune'}
+              </span>
+            </div>
+          </div>
+
+          {/* Bottom Right: Authorized Signatory */}
+          <div style={{ textAlign: 'right', minWidth: '220px', paddingTop: '36px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#111827', marginBottom: '40px' }}>
+              For {selectedFirm?.firm_name || 'Mavin Credits'}
+            </div>
+            <div
+              style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#4b5563',
+                borderTop: '1px solid #111827',
+                paddingTop: '6px',
+                display: 'inline-block',
+                minWidth: '170px',
+                textAlign: 'center'
+              }}
+            >
+              Authorized Signatory
+            </div>
+          </div>
+        </div>
+
         {/* Footer Note */}
         <div
           style={{
-            marginTop: '44px',
-            paddingTop: '16px',
+            marginTop: '36px',
+            paddingTop: '14px',
             borderTop: '1px solid #e5e7eb',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            fontSize: '13px',
+            fontSize: '12px',
             color: '#6b7280'
           }}
         >
-          <div>This is a computer-generated tax invoice verified by Mavin Credit Consultant Private Limited.</div>
-          <div style={{ fontWeight: 600, color: '#374151' }}>Authorized Signatory</div>
+          <div>This is a computer-generated tax invoice verified by {selectedFirm?.firm_name || 'Mavin Credits'}.</div>
         </div>
       </div>
 
@@ -1174,27 +1310,38 @@ export const CreateInvoices: React.FC = () => {
           gap: '12px'
         }}
       >
-        {activeInvoiceId && (
+        {isViewOnly ? (
+          <>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={handleResetForm}
+              icon={<RefreshCw size={18} />}
+            >
+              New Invoice
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => handleDownloadPdf(activeInvoiceId)}
+              icon={<Download size={18} />}
+              style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+            >
+              Download Invoice PDF
+            </Button>
+          </>
+        ) : (
           <Button
-            variant="secondary"
+            variant="primary"
             size="lg"
-            onClick={() => handleDownloadPdf(activeInvoiceId)}
-            icon={<Download size={18} />}
+            onClick={handleSaveInvoice}
+            disabled={!isFormValid || isSaving}
+            isLoading={isSaving}
+            icon={<FileText size={18} />}
           >
-            Download Invoice PDF
+            Save Invoice
           </Button>
         )}
-
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={handleSaveInvoice}
-          disabled={!isFormValid || isSaving}
-          isLoading={isSaving}
-          icon={<FileText size={18} />}
-        >
-          {activeInvoiceId ? 'Save As New Invoice' : 'Save Invoice'}
-        </Button>
       </div>
 
       {/* ========================================================================= */}
@@ -1245,7 +1392,7 @@ export const CreateInvoices: React.FC = () => {
               </span>
             </div>
             <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-              All stored invoices across firms. Click any row to preview or edit in the format above, or download its PDF directly.
+              All stored invoices across firms. Click any row to preview in view-only mode in the format above, or download its PDF directly.
             </div>
           </div>
 

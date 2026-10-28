@@ -17,7 +17,12 @@ CREATE TABLE IF NOT EXISTS firms (
   state TEXT NOT NULL,
   state_code TEXT NOT NULL,
   address TEXT NOT NULL,
-  is_active INTEGER DEFAULT 1
+  is_active INTEGER DEFAULT 1,
+  bank_name TEXT,
+  account_name TEXT,
+  account_no TEXT,
+  ifsc_code TEXT,
+  branch TEXT
 );
 
 CREATE TABLE IF NOT EXISTS receiving_bank_accounts (

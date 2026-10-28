@@ -17,6 +17,11 @@ export interface Firm {
   state_code: string;
   address: string;
   is_active: number;
+  bank_name?: string;
+  account_name?: string;
+  account_no?: string;
+  ifsc_code?: string;
+  branch?: string;
 }
 
 export interface Product {
