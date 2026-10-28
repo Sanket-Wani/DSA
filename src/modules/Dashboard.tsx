@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { apiRequest } from '../api/client.js';
 import { FileLoggedIn } from './FileLoggedIn.js';
 import { Disbursements } from './Disbursements.js';
-import { Accounts } from './Accounts.js';
+import { Accounts, computeRecordStatus } from './Accounts.js';
+import { AccountsRecord } from '../types/index.js';
 
 export type DashboardCardType = 'files' | 'disbursements' | 'accounts';
 
@@ -52,6 +54,78 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
   // Default to 'disbursements' or 'files' (or initialCard)
   const [selectedCard, setSelectedCard] = useState<DashboardCardType>(initialCard || 'disbursements');
 
+  // Live Section Details for the 3 Cards
+  const [metrics, setMetrics] = useState({
+    fileLoggedInCount: 0,
+    disbursementsCount: 0,
+    pendingInvoicesCount: 0,
+    completedInvoicesCount: 0
+  });
+
+  const fetchMetrics = async () => {
+    try {
+      const [filesRes, disbRes, accRes] = await Promise.allSettled([
+        apiRequest<{ pagination: { total: number; activeFilesCount?: number } }>('/api/files?limit=1'),
+        apiRequest<{ fileDisbursements: any[] }>('/api/disbursements'),
+        apiRequest<{ accounts: AccountsRecord[] }>('/api/accounts')
+      ]);
+
+      // 1. File Logged In: total files calculated by total records in this section (active files where status != 'Disburse')
+      const fileLoggedInCount = filesRes.status === 'fulfilled'
+        ? (filesRes.value?.pagination?.activeFilesCount ?? filesRes.value?.pagination?.total ?? 0)
+        : 0;
+
+      // 2. Disbursements: total files calculated by total records in this section
+      const disbursementsCount = disbRes.status === 'fulfilled' && Array.isArray(disbRes.value?.fileDisbursements)
+        ? disbRes.value.fileDisbursements.length
+        : 0;
+
+      // 3. Accounts: pending invoices, completed invoices
+      let pendingInvoicesCount = 0;
+      let completedInvoicesCount = 0;
+
+      if (accRes.status === 'fulfilled' && Array.isArray(accRes.value?.accounts)) {
+        accRes.value.accounts.forEach(acc => {
+          const taxableTotal = Number(acc.invoice_taxable_amount || 0);
+          const totalGst = acc.invoice_gst_amount !== undefined
+            ? Number(acc.invoice_gst_amount)
+            : (Number(acc.invoice_total_amount || 0) - taxableTotal);
+          const tdsSec = acc.tds_section || '194J';
+          const totalTds = tdsSec === '194H' ? taxableTotal * 0.10 : taxableTotal * 0.02;
+
+          const enteredTaxable = Number(acc.taxable_amount || 0);
+          const enteredGst = Number(acc.gst_amount || 0);
+          const enteredTds = Number(acc.tds_amount || 0);
+
+          const status = computeRecordStatus(
+            enteredTaxable, taxableTotal,
+            enteredGst, totalGst,
+            enteredTds, totalTds
+          );
+
+          if (status === 'Complete') {
+            completedInvoicesCount++;
+          } else {
+            pendingInvoicesCount++;
+          }
+        });
+      }
+
+      setMetrics({
+        fileLoggedInCount,
+        disbursementsCount,
+        pendingInvoicesCount,
+        completedInvoicesCount
+      });
+    } catch {
+      // Graceful fallback
+    }
+  };
+
+  useEffect(() => {
+    fetchMetrics();
+  }, [selectedCard]);
+
   return (
     <div className="page-content">
       <div className="dashboard-deck">
@@ -81,6 +155,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
             )}
 
             <div className="dashboard-card-title">File Logged-in</div>
+            <div className="dashboard-card-metrics">
+              <span className="dashboard-metric-badge">
+                {metrics.fileLoggedInCount} Total Files
+              </span>
+            </div>
           </div>
 
           {/* Card 2: Disbursements */}
@@ -107,6 +186,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
             )}
 
             <div className="dashboard-card-title">Disbursements</div>
+            <div className="dashboard-card-metrics">
+              <span className="dashboard-metric-badge">
+                {metrics.disbursementsCount} Total Files
+              </span>
+            </div>
           </div>
 
           {/* Card 3: Accounts */}
@@ -132,6 +216,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
             )}
 
             <div className="dashboard-card-title">Accounts</div>
+            <div className="dashboard-card-metrics">
+              <span className="dashboard-metric-badge">
+                {metrics.pendingInvoicesCount} Pending Invoices
+              </span>
+              <span className="dashboard-metric-badge">
+                {metrics.completedInvoicesCount} Completed Invoices
+              </span>
+            </div>
           </div>
 
         </div>
