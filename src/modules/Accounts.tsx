@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Save, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import { Save, RefreshCw, CheckCircle, AlertCircle, Search, X } from 'lucide-react';
 import { AccountsRecord, VoucherType, ReceivingAccount } from '../types/index.js';
 import { apiRequest } from '../api/client.js';
 import { Button } from '../components/Button.js';
@@ -13,6 +13,7 @@ export const Accounts: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   // Expanded rows tracking: set of expanded invoice IDs
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -110,24 +111,35 @@ export const Accounts: React.FC = () => {
     }
   };
 
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const filteredAccounts = accounts.filter(acc => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase().trim();
+    const mName = acc.month ? monthNames[acc.month - 1].toLowerCase() : '';
+    return (
+      (acc.firm_name && acc.firm_name.toLowerCase().includes(q)) ||
+      (acc.company_name && acc.company_name.toLowerCase().includes(q)) ||
+      (acc.trade_legal_name && acc.trade_legal_name.toLowerCase().includes(q)) ||
+      (acc.client_name && acc.client_name.toLowerCase().includes(q)) ||
+      (acc.gst_no && acc.gst_no.toLowerCase().includes(q)) ||
+      (acc.invoice_number && acc.invoice_number.toLowerCase().includes(q)) ||
+      String(acc.year).includes(q) ||
+      mName.includes(q)
+    );
+  });
+
   return (
     <div className="page-content">
       <div className="page-header">
         <div>
           <h1 className="page-title">Accounts</h1>
           <div className="page-subtitle">
-            Financial ledger of saved invoices with expandable receipt tracking for Taxable Value, GST, and TDS.
+            Financial ledger of saved invoices with receipt tracking for Taxable Value, GST, and TDS.
           </div>
-        </div>
-        <div className="page-actions">
-          <Button
-            variant="secondary"
-            onClick={fetchAccounts}
-            isLoading={isLoading}
-            icon={<RefreshCw size={14} />}
-          >
-            Refresh Ledger
-          </Button>
         </div>
       </div>
 
@@ -150,141 +162,198 @@ export const Accounts: React.FC = () => {
         </div>
       )}
 
-      {/* Main Ledger Table */}
+      {/* Search & Actions Toolbar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '16px',
+          gap: '12px',
+          flexWrap: 'wrap'
+        }}
+      >
+        <div className="search-input-wrapper" style={{ width: '340px' }}>
+          <Search size={16} className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search firm, client, GSTIN, year/month..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="search-input"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="search-clear"
+              title="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span className="badge badge-neutral" style={{ fontSize: '11px' }}>
+            {filteredAccounts.length} record{filteredAccounts.length === 1 ? '' : 's'}
+          </span>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={fetchAccounts}
+            isLoading={isLoading}
+            icon={<RefreshCw size={14} />}
+            aria-label="Refresh ledger"
+          >
+            Refresh Ledger
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Ledger Table (5 Columns: Firm, Year & Month, Client / Company & GSTIN, Invoice Amount, Invoice Date) */}
       <div className="table-container">
         <table className="data-table">
           <thead>
-            <tr>
-              <th style={{ width: '40px' }} aria-label="Expand row"></th>
-              <th>Firm</th>
-              <th>Invoice ID</th>
-              <th>Year & Month</th>
-              <th>Voucher</th>
-              <th>Trade / Legal Name</th>
-              <th>Client GST No.</th>
-              <th>Invoice No.</th>
-              <th>Invoice Date</th>
-              <th style={{ textAlign: 'right' }}>Total Amount</th>
-              <th style={{ textAlign: 'center' }}>Ledger Status</th>
+            <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', width: '18%' }}>Firm</th>
+              <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', width: '16%' }}>Year & Month</th>
+              <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', width: '36%' }}>Client / Company & GSTIN</th>
+              <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right', width: '16%' }}>Invoice Amount (₹)</th>
+              <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', width: '14%' }}>Invoice Date</th>
             </tr>
           </thead>
           <tbody>
-            {accounts.length === 0 ? (
+            {filteredAccounts.length === 0 ? (
               <tr>
-                <td colSpan={11} className="table-empty">
-                  <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>No invoice ledger entries found</div>
+                <td colSpan={5} className="table-empty">
+                  <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                    {search ? 'No ledger entries match your search query' : 'No invoice ledger entries found'}
+                  </div>
                   <div style={{ fontSize: 'var(--font-size-sm)', marginTop: '4px' }}>
-                    Generate an invoice in Create Invoices to initialize an accounts ledger row.
+                    {search ? 'Try clearing or modifying your search filter.' : 'Generate an invoice in Create Invoices to initialize an accounts ledger row.'}
                   </div>
                 </td>
               </tr>
             ) : (
-              accounts.map(acc => {
+              filteredAccounts.map(acc => {
                 const isExpanded = expandedRows.has(acc.invoice_id);
                 const draft = editDrafts[acc.invoice_id] || {};
                 const isSavingThis = savingInvoiceId === acc.invoice_id;
 
-                const monthNames = [
-                  'January', 'February', 'March', 'April', 'May', 'June',
-                  'July', 'August', 'September', 'October', 'November', 'December'
-                ];
                 const yearMonthLabel = acc.month ? `${monthNames[acc.month - 1]} ${acc.year}` : `${acc.year}`;
 
                 return (
                   <React.Fragment key={acc.invoice_id}>
-                    {/* Read-Only Master Invoice Row */}
-                    <tr>
-                      <td>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="btn-icon-only"
-                          onClick={() => toggleRowExpansion(acc.invoice_id)}
-                          aria-expanded={isExpanded}
-                          aria-label={isExpanded ? 'Collapse ledger sections' : 'Expand ledger sections'}
-                          icon={isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        />
+                    {/* Entire record row is clickable to view/edit ledger details */}
+                    <tr
+                      className={`clickable-row ${isExpanded ? 'selected-row' : ''}`}
+                      onClick={() => toggleRowExpansion(acc.invoice_id)}
+                      style={{
+                        cursor: 'pointer',
+                        backgroundColor: isExpanded ? '#eff6ff' : undefined,
+                        borderLeft: isExpanded ? '3px solid #2563eb' : undefined,
+                        transition: 'background-color 0.15s ease'
+                      }}
+                      title="Click to view and edit collection ledger details"
+                    >
+                      {/* 1. Firm */}
+                      <td style={{ fontWeight: 600, color: '#1e293b' }}>
+                        {acc.firm_name || '—'}
                       </td>
-                      <td style={{ fontWeight: 500 }}>{acc.firm_name}</td>
+
+                      {/* 2. Year & Month */}
                       <td>
-                        <span className="num-tabular" style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                          {acc.invoice_id.substring(0, 8)}...
+                        <span className="num-tabular" style={{ fontWeight: 500, color: '#334155' }}>
+                          {yearMonthLabel}
                         </span>
                       </td>
+
+                      {/* 3. Client Company Name, Client Name, Client GSTIN */}
                       <td>
-                        <span className="num-tabular">{yearMonthLabel}</span>
+                        <div style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>
+                          {acc.company_name || acc.trade_legal_name || '—'}
+                        </div>
+                        {acc.client_name && (
+                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                            {acc.client_name}
+                          </div>
+                        )}
+                        {acc.gst_no && acc.gst_no !== 'URP' && acc.gst_no !== 'Unregistered' ? (
+                          <div style={{ fontSize: '11px', fontFamily: 'monospace', color: '#475569', marginTop: '2px' }}>
+                            GSTIN: <span style={{ fontWeight: 600, color: '#1e293b' }}>{acc.gst_no}</span>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                            GSTIN: Unregistered (URP)
+                          </div>
+                        )}
                       </td>
-                      <td style={{ minWidth: '150px' }}>
-                        <select
-                          value={draft.voucher_id || ''}
-                          onChange={e => handleDraftChange(acc.invoice_id, 'voucher_id', e.target.value)}
-                          className="select-control"
-                          style={{ height: '32px', fontSize: 'var(--font-size-xs)' }}
-                        >
-                          <option value="">-- Select Voucher --</option>
-                          {voucherTypes.map(v => (
-                            <option key={v.id} value={v.id}>
-                              {v.voucher_name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td style={{ fontWeight: 500 }}>{acc.trade_legal_name}</td>
-                      <td>
-                        <span className="num-tabular" style={{ fontSize: 'var(--font-size-xs)' }}>
-                          {acc.gst_no || 'Unregistered'}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="num-tabular" style={{ fontWeight: 600 }}>
-                          {acc.invoice_number}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="num-tabular">{acc.invoice_date}</span>
-                      </td>
-                      <td className="table-cell-num" style={{ fontWeight: 600 }}>
+
+                      {/* 4. Invoice Amount */}
+                      <td className="table-cell-num" style={{ fontWeight: 700, color: '#0f172a' }}>
                         ₹{Number(acc.invoice_total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => toggleRowExpansion(acc.invoice_id)}
-                          style={{
-                            fontSize: 'var(--font-size-xs)',
-                            color: 'var(--color-text-secondary)',
-                            textDecoration: 'underline',
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {isExpanded ? 'Hide Details' : 'View / Edit Sections'}
-                        </button>
+
+                      {/* 5. Invoice Date */}
+                      <td>
+                        <span className="num-tabular" style={{ color: '#475569', fontSize: '12.5px' }}>
+                          {acc.invoice_date || '—'}
+                        </span>
                       </td>
                     </tr>
 
                     {/* Expandable Ledger Sections: Taxable Value, GST, TDS */}
                     {isExpanded && (
                       <tr>
-                        <td colSpan={11} className="expanded-row-cell">
-                          <div className="expanded-row-content">
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                                Collection Ledger for Invoice {acc.invoice_number}
+                        <td colSpan={5} className="expanded-row-cell">
+                          <div className="expanded-row-content" onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, color: '#1e3a8a' }}>
+                                  Collection Ledger for Invoice: {acc.invoice_number}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <label style={{ fontSize: '11.5px', fontWeight: 600, color: '#475569' }}>Voucher:</label>
+                                  <select
+                                    value={draft.voucher_id || ''}
+                                    onChange={e => handleDraftChange(acc.invoice_id, 'voucher_id', e.target.value)}
+                                    className="select-control"
+                                    style={{ height: '30px', fontSize: '12px', padding: '2px 8px', width: '170px' }}
+                                  >
+                                    <option value="">-- Select Voucher --</option>
+                                    {voucherTypes.map(v => (
+                                      <option key={v.id} value={v.id}>
+                                        {v.voucher_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
                               </div>
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                isLoading={isSavingThis}
-                                onClick={() => handleSaveRow(acc.invoice_id)}
-                                icon={<Save size={14} />}
-                              >
-                                Save Ledger Details
-                              </Button>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  isLoading={isSavingThis}
+                                  onClick={() => handleSaveRow(acc.invoice_id)}
+                                  icon={<Save size={14} />}
+                                >
+                                  Save Ledger Details
+                                </Button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleRowExpansion(acc.invoice_id)}
+                                  className="inline-btn-cancel"
+                                  style={{ height: '30px', padding: '0 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  title="Close ledger details"
+                                >
+                                  <X size={12} /> Close
+                                </button>
+                              </div>
                             </div>
 
-                            <div className="ledger-subsections">
+                            <div className="ledger-subsections" style={{ marginTop: '14px' }}>
                               {/* Section 1: Taxable Value */}
                               <div className="ledger-card">
                                 <div className="ledger-card-title">

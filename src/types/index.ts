@@ -187,6 +187,8 @@ export interface AccountsRecord {
   invoice_total_amount: number;
   firm_name: string;
   trade_legal_name: string;
+  company_name?: string;
+  client_name?: string;
   gst_no: string;
   firm_id: number;
   ledger_id?: number;

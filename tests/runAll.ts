@@ -396,6 +396,29 @@ async function runTests() {
   assert('gst_no' in disbSummary, 'Disbursements summary includes client GSTIN');
   assert('bank_manager_name' in disbSummary, 'Disbursements summary includes bank manager name');
 
+  // Test 18: Accounts Ledger Query Fields
+  console.log('\n--- 18. Accounts Ledger Table Columns & Snapshot Fields ---');
+  const accQuery = db.prepare(`
+    SELECT 
+      i.id as invoice_id,
+      i.firm_name_snapshot as firm_name,
+      i.year,
+      i.month,
+      i.client_company_snapshot as company_name,
+      i.client_name_snapshot as client_name,
+      i.client_gstin_snapshot as gst_no,
+      i.total_amount as invoice_total_amount,
+      i.invoice_date
+    FROM invoices i
+    WHERE i.id = ?
+  `).get(invId) as any;
+  assert(accQuery && accQuery.invoice_id === invId, 'Accounts ledger query finds invoice by ID');
+  assert(accQuery && 'firm_name' in accQuery, 'Accounts ledger includes firm');
+  assert(accQuery && 'year' in accQuery && 'month' in accQuery, 'Accounts ledger includes year and month');
+  assert(accQuery && 'company_name' in accQuery && 'client_name' in accQuery && 'gst_no' in accQuery, 'Accounts ledger includes client company name, client name, and client GSTIN');
+  assert(accQuery && 'invoice_total_amount' in accQuery, 'Accounts ledger includes invoice amount');
+  assert(accQuery && 'invoice_date' in accQuery, 'Accounts ledger includes invoice date');
+
   // Cleanup test artifacts
   db.prepare('DELETE FROM disbursements WHERE file_id = ?').run(fileId1);
   db.prepare('DELETE FROM accounts_ledger WHERE invoice_id = ?').run(invId);
