@@ -1196,151 +1196,107 @@ export const FileLoggedIn: React.FC = () => {
                     <div className="inline-file-form-grid">
                       {/* Column 1 */}
                       <div className="inline-file-col">
-                        <div className="inline-field-group">
-                          <label className="inline-field-label">File ID (dynamic)</label>
-                          <input
-                            type="text"
-                            readOnly
-                            value="Auto-assigned"
-                            className="inline-field-input inline-field-input-readonly"
-                          />
-                        </div>
+                        <input
+                          type="text"
+                          readOnly
+                          placeholder="File ID (dynamic)"
+                          value=""
+                          className="inline-field-input inline-field-input-readonly"
+                          title="File ID is auto-assigned upon save"
+                        />
 
-                        <div className="inline-field-group">
-                          <label className="inline-field-label">Date (autofetched)</label>
-                          <input
-                            type="text"
-                            readOnly
-                            value={formLoginDate}
-                            className="inline-field-input inline-field-input-readonly"
-                          />
-                        </div>
+                        <input
+                          type="text"
+                          readOnly
+                          placeholder="Date (autofetched)"
+                          value={formLoginDate ? `Date: ${formLoginDate}` : ''}
+                          className="inline-field-input inline-field-input-readonly"
+                          title="Autofetched system login date"
+                        />
 
-                        <div className="inline-field-group">
-                          <label className="inline-field-label">
-                            <span>Product (dropdown)</span>
-                            <span className="inline-field-label-req">*</span>
-                          </label>
-                          <select
-                            value={productId}
-                            onChange={e => setProductId(e.target.value)}
-                            className="inline-field-select"
-                          >
-                            <option value="">Select product...</option>
-                            {products.map(p => (
-                              <option key={p.id} value={p.id}>
-                                {p.acronym} — {p.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        <select
+                          value={productId}
+                          onChange={e => setProductId(e.target.value)}
+                          className="inline-field-select"
+                        >
+                          <option value="">Product (dropdown) *</option>
+                          {products.map(p => (
+                            <option key={p.id} value={p.id}>
+                              {p.acronym} — {p.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
                       {/* Column 2 */}
                       <div className="inline-file-col">
-                        <div className="inline-field-group">
-                          <label className="inline-field-label">
-                            <span>Clients Company name</span>
-                            <span className="inline-field-label-req">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="e.g. Acme Corp Ltd"
-                            value={companyName}
-                            onChange={e => setCompanyName(e.target.value)}
-                            className="inline-field-input"
-                          />
-                        </div>
+                        <input
+                          type="text"
+                          placeholder="Clients Company name *"
+                          value={companyName}
+                          onChange={e => setCompanyName(e.target.value)}
+                          className="inline-field-input"
+                        />
 
-                        <div className="inline-field-group">
-                          <label className="inline-field-label">
-                            <span>Clients name</span>
-                            <span className="inline-field-label-req">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="e.g. Rajesh Sharma"
-                            value={clientName}
-                            onChange={e => setClientName(e.target.value)}
-                            className="inline-field-input"
-                          />
-                        </div>
+                        <input
+                          type="text"
+                          placeholder="Clients name *"
+                          value={clientName}
+                          onChange={e => setClientName(e.target.value)}
+                          className="inline-field-input"
+                        />
 
-                        <div className="inline-field-group">
-                          <label className="inline-field-label">
-                            <span>Clients GSTIN</span>
-                            <span className="inline-field-label-req">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="27AABCU9603R1ZM"
-                            maxLength={15}
-                            value={gstNo}
-                            onChange={e => setGstNo(e.target.value.toUpperCase())}
-                            className="inline-field-input"
-                            style={{ textTransform: 'uppercase' }}
-                          />
-                        </div>
+                        <input
+                          type="text"
+                          placeholder="Clients GSTIN *"
+                          maxLength={15}
+                          value={gstNo}
+                          onChange={e => setGstNo(e.target.value.toUpperCase())}
+                          className="inline-field-input"
+                          style={{ textTransform: 'uppercase' }}
+                        />
 
-                        <div className="inline-field-group">
-                          <label className="inline-field-label">
-                            <span>Clients phone no.</span>
-                          </label>
-                          <input
-                            type="tel"
-                            placeholder="+91 98765 43210"
-                            value={clientPhone}
-                            onChange={e => setClientPhone(e.target.value)}
-                            className="inline-field-input"
-                          />
-                        </div>
+                        <input
+                          type="tel"
+                          placeholder="Clients phone no."
+                          value={clientPhone}
+                          onChange={e => setClientPhone(e.target.value)}
+                          className="inline-field-input"
+                        />
 
-                        <div className="inline-field-group">
-                          <label className="inline-field-label">
-                            <span>Clients email</span>
-                            <span className="inline-field-label-req">*</span>
-                          </label>
-                          <input
-                            type="email"
-                            placeholder="client@company.com"
-                            value={clientEmail}
-                            onChange={e => setClientEmail(e.target.value)}
-                            className="inline-field-input"
-                          />
-                        </div>
+                        <input
+                          type="email"
+                          placeholder="Clients email *"
+                          value={clientEmail}
+                          onChange={e => setClientEmail(e.target.value)}
+                          className="inline-field-input"
+                        />
                       </div>
 
                       {/* Column 3 */}
                       <div className="inline-file-col">
-                        <div className="inline-field-group">
-                          <label className="inline-field-label">
-                            <span>Bank (multiple banks selection allowed)</span>
-                            <span className="inline-field-label-req">*</span>
-                          </label>
-                        </div>
-
                         {banksList.map((b, idx) => (
                           <div key={idx} className="inline-bank-card">
-                            <div className="inline-bank-card-header">
-                              <span>Bank Allocation #{idx + 1}</span>
-                              {banksList.length > 1 && (
+                            {banksList.length > 1 && (
+                              <div className="inline-bank-card-header">
+                                <span>Bank Allocation #{idx + 1}</span>
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveBankRow(idx)}
                                   style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '13px' }}
-                                  title="Remove bank"
+                                  title="Remove bank allocation"
                                 >
                                   ×
                                 </button>
-                              )}
-                            </div>
+                              </div>
+                            )}
 
                             <select
                               value={b.bank_id}
                               onChange={e => handleUpdateBankRow(idx, 'bank_id', e.target.value)}
                               className="inline-field-select"
                             >
-                              <option value="">Select Bank...</option>
+                              <option value="">Bank (multiple banks selection allowed) *</option>
                               {allBanks.map(ab => (
                                 <option key={ab.id} value={ab.id}>
                                   {ab.bank_name}
@@ -1350,7 +1306,7 @@ export const FileLoggedIn: React.FC = () => {
 
                             <input
                               type="text"
-                              placeholder="Bank Manager / Consultant Name"
+                              placeholder="Bank Manager / Consultant Name *"
                               value={b.bank_manager_name}
                               onChange={e => handleUpdateBankRow(idx, 'bank_manager_name', e.target.value)}
                               className="inline-field-input"
@@ -1358,7 +1314,7 @@ export const FileLoggedIn: React.FC = () => {
 
                             <input
                               type="number"
-                              placeholder="Sanction Loan Amount (₹)"
+                              placeholder="Sanction Loan Amount (₹) *"
                               value={b.sanction_loan_amount}
                               onChange={e => handleUpdateBankRow(idx, 'sanction_loan_amount', e.target.value)}
                               className="inline-field-input"
@@ -1377,71 +1333,50 @@ export const FileLoggedIn: React.FC = () => {
 
                       {/* Column 4 */}
                       <div className="inline-file-col">
-                        <div className="inline-field-group">
-                          <label className="inline-field-label">
-                            <span>Office Sales Member Name</span>
-                            <span className="inline-field-label-req">*</span>
-                          </label>
-                          <select
-                            value={salesMemberId}
-                            onChange={e => setSalesMemberId(e.target.value)}
-                            className="inline-field-select"
-                          >
-                            <option value="">Select Member...</option>
-                            {salesMembers.map(s => (
-                              <option key={s.id} value={s.id}>
-                                {s.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        <select
+                          value={salesMemberId}
+                          onChange={e => setSalesMemberId(e.target.value)}
+                          className="inline-field-select"
+                        >
+                          <option value="">Office Sales Member Name *</option>
+                          {salesMembers.map(s => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
 
-                        <div className="inline-field-group">
-                          <label className="inline-field-label">
-                            <span>Code</span>
-                            <span className="inline-field-label-req">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="e.g. DSA-01"
-                            value={fileCode}
-                            onChange={e => setFileCode(e.target.value)}
-                            className="inline-field-input"
-                          />
-                        </div>
+                        <input
+                          type="text"
+                          placeholder="Code *"
+                          value={fileCode}
+                          onChange={e => setFileCode(e.target.value)}
+                          className="inline-field-input"
+                        />
 
-                        <div className="inline-field-group">
-                          <label className="inline-field-label">
-                            <span>Case Source</span>
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="e.g. Direct / CA"
-                            value={caseSource}
-                            onChange={e => setCaseSource(e.target.value)}
-                            className="inline-field-input"
-                          />
-                        </div>
+                        <input
+                          type="text"
+                          placeholder="Case Source"
+                          value={caseSource}
+                          onChange={e => setCaseSource(e.target.value)}
+                          className="inline-field-input"
+                        />
                       </div>
 
                       {/* Column 5 */}
                       <div className="inline-file-col">
-                        <div className="inline-field-group">
-                          <label className="inline-field-label">
-                            <span>File status</span>
-                          </label>
-                          <select
-                            value={fileStatus}
-                            onChange={e => setFileStatus(e.target.value as FileStatus)}
-                            className="inline-field-select"
-                          >
-                            {ALL_FILE_STATUSES.map(st => (
-                              <option key={st} value={st}>
-                                {st}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        <select
+                          value={fileStatus}
+                          onChange={e => setFileStatus(e.target.value as FileStatus)}
+                          className="inline-field-select"
+                        >
+                          <option value="">File status</option>
+                          {ALL_FILE_STATUSES.map(st => (
+                            <option key={st} value={st}>
+                              {st}
+                            </option>
+                          ))}
+                        </select>
 
                         <div className="inline-actions-group">
                           <button
