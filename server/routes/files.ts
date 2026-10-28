@@ -99,6 +99,7 @@ router.get('/', (req, res) => {
         c.gst_no,
         c.client_name,
         c.client_email,
+        c.client_phone,
         p.id as product_id,
         p.name as product_name,
         p.acronym as product_acronym,
@@ -153,6 +154,7 @@ router.get('/eligible', requireSuperadmin, (req, res) => {
         c.gst_no,
         c.client_name,
         c.client_email,
+        c.client_phone,
         p.id as product_id,
         p.name as product_name,
         p.acronym as product_acronym,
@@ -187,6 +189,7 @@ router.get('/:id', (req, res) => {
         c.gst_no,
         c.client_name,
         c.client_email,
+        c.client_phone,
         p.name as product_name,
         p.acronym as product_acronym,
         b.bank_name,
@@ -233,6 +236,7 @@ router.post('/', (req, res) => {
     gst_no,
     client_name,
     client_email,
+    client_phone,
     product_id,
     bank_id,
     bank_manager_name,
@@ -304,18 +308,20 @@ router.post('/', (req, res) => {
       
       if (existingClient) {
         clientId = existingClient.id;
-        db.prepare('UPDATE clients SET gst_no = ?, client_name = ?, client_email = ? WHERE id = ?').run(
+        db.prepare('UPDATE clients SET gst_no = ?, client_name = ?, client_email = ?, client_phone = ? WHERE id = ?').run(
           gst_no.trim(),
           client_name.trim(),
           client_email.trim(),
+          client_phone ? client_phone.trim() : null,
           clientId
         );
       } else {
-        const cInfo = db.prepare('INSERT INTO clients (company_name, gst_no, client_name, client_email, created_at) VALUES (?, ?, ?, ?, ?)').run(
+        const cInfo = db.prepare('INSERT INTO clients (company_name, gst_no, client_name, client_email, client_phone, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
           company_name.trim(),
           gst_no.trim(),
           client_name.trim(),
           client_email.trim(),
+          client_phone ? client_phone.trim() : null,
           loginDate
         );
         clientId = Number(cInfo.lastInsertRowid);
@@ -423,6 +429,7 @@ router.put('/:id', (req, res) => {
       gst_no,
       client_name,
       client_email,
+      client_phone,
       product_id,
       sales_member_id,
       code,
@@ -485,13 +492,14 @@ router.put('/:id', (req, res) => {
       // 1. Update client details
       db.prepare(`
         UPDATE clients 
-        SET company_name = ?, gst_no = ?, client_name = ?, client_email = ?
+        SET company_name = ?, gst_no = ?, client_name = ?, client_email = ?, client_phone = ?
         WHERE id = ?
       `).run(
         company_name.trim(),
         gst_no.trim(),
         client_name.trim(),
         client_email.trim(),
+        client_phone ? client_phone.trim() : null,
         existingFile.client_id
       );
 

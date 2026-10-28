@@ -173,6 +173,12 @@ export function runMigration() {
         END
         WHERE email NOT LIKE '%@vinayakassociates.in'
       `).run();
+
+      // 7. Add client_phone column to clients table if missing
+      const clientCols = db.prepare("PRAGMA table_info(clients)").all() as any[];
+      if (!clientCols.some(c => c.name === 'client_phone')) {
+        db.exec("ALTER TABLE clients ADD COLUMN client_phone TEXT");
+      }
     })();
   } finally {
     db.pragma('foreign_keys = ON');

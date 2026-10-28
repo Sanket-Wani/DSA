@@ -468,3 +468,229 @@
   }
 }
 
+/* ========================================================
+   Inline Horizontal File Entry Form Row (New File Entry)
+   ======================================================== */
+.inline-file-entry-td {
+  padding: 0 !important;
+  background-color: #ffffff;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.inline-file-form-wrapper {
+  background-color: #f8fafc;
+  border-left: 4px solid #0f172a;
+  padding: 16px 20px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.inline-file-form-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.inline-file-form-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #0f172a;
+}
+
+.inline-file-form-tag::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background-color: #10b981;
+}
+
+.inline-file-form-grid {
+  display: grid;
+  grid-template-columns: 170px 1.4fr 1.3fr 1.1fr 180px;
+  gap: 16px;
+  align-items: start;
+}
+
+.inline-file-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inline-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.inline-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.inline-field-label-req {
+  color: #dc2626;
+  margin-left: 2px;
+}
+
+.inline-field-input,
+.inline-field-select {
+  height: 32px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #0f172a;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.inline-field-input:focus,
+.inline-field-select:focus {
+  outline: none;
+  border-color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.08);
+}
+
+.inline-field-input-readonly {
+  background-color: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+  cursor: default;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  font-size: 11.5px;
+}
+
+.inline-bank-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.inline-bank-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.inline-add-bank-btn {
+  background: none;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 150ms ease;
+}
+
+.inline-add-bank-btn:hover {
+  background-color: #ffffff;
+  border-color: #0f172a;
+  color: #0f172a;
+}
+
+.inline-actions-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.inline-btn-save {
+  height: 34px;
+  background-color: #0f172a;
+  color: #ffffff;
+  border: 1px solid #0f172a;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background-color 150ms ease;
+  width: 100%;
+}
+
+.inline-btn-save:hover:not(:disabled) {
+  background-color: #1e293b;
+}
+
+.inline-btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.inline-btn-cancel {
+  height: 34px;
+  background-color: #ffffff;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+  width: 100%;
+}
+
+.inline-btn-cancel:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.inline-form-error-banner {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (max-width: 1100px) {
+  .inline-file-form-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+

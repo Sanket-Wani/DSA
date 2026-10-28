@@ -99,6 +99,7 @@ export interface FileRecord {
   gst_no: string;
   client_name: string;
   client_email: string;
+  client_phone?: string;
   product_id: number;
   product_name: string;
   product_acronym: string;

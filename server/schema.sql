@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS clients (
   gst_no TEXT NOT NULL,
   client_name TEXT NOT NULL,
   client_email TEXT NOT NULL,
+  client_phone TEXT,
   created_at TEXT NOT NULL
 );
 
