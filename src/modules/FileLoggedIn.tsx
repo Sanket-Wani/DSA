@@ -165,8 +165,11 @@ export const FileLoggedIn: React.FC = () => {
 
   // Toggle inline New File Entry horizontal form row
   const handleToggleInlineCreate = () => {
-    if (isInlineCreating && !editingFileId) {
+    if (isInlineCreating) {
       setIsInlineCreating(false);
+      setEditingFileId(null);
+      setSelectedFileId(null);
+      setSelectedFile(null);
       setInlineError(null);
       return;
     }
