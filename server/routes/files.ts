@@ -19,25 +19,50 @@ export const VALID_FILE_STATUSES = [
   'Qualification Issue (Rejected by Firm)'
 ];
 
-// Helper to generate sequential File ID e.g. FL-2026-0001
-function generateNextFileId(): string {
+// Helper to format 3-character product code
+// If acronym is 2 digits/chars, add suffix X (e.g. BL -> BLX)
+export function formatProductCode(acronym: string): string {
+  const clean = (acronym || '').toUpperCase().trim();
+  if (clean.length === 2) return clean + 'X';
+  if (clean.length === 3) return clean;
+  if (clean.length > 3) return clean.slice(0, 3);
+  return clean.padEnd(3, 'X');
+}
+
+// Helper to generate sequential File ID:
+// Formula: current year (2 digits e.g. "26") + Product acronym (3 chars, 'X' suffix if 2) + series of that product (3 digits)
+// e.g. 26BLX001, 26LAP001
+export function generateNextFileId(productId?: number | string): string {
   const currentYear = new Date().getFullYear();
-  const prefix = `FL-${currentYear}-`;
+  const yearPrefix = String(currentYear).slice(-2); // e.g. "26"
 
-  const lastFile = db.prepare(
-    "SELECT id FROM files WHERE id LIKE ? ORDER BY id DESC LIMIT 1"
-  ).get(`${prefix}%`) as { id: string } | undefined;
-
-  let nextSeq = 1;
-  if (lastFile && lastFile.id) {
-    const parts = lastFile.id.split('-');
-    const lastNum = parseInt(parts[2], 10);
-    if (!isNaN(lastNum)) {
-      nextSeq = lastNum + 1;
+  let productCode = 'GEN';
+  if (productId) {
+    const product = db.prepare('SELECT acronym FROM products WHERE id = ?').get(productId) as { acronym: string } | undefined;
+    if (product && product.acronym) {
+      productCode = formatProductCode(product.acronym);
     }
   }
 
-  return `${prefix}${String(nextSeq).padStart(4, '0')}`;
+  const prefix = `${yearPrefix}${productCode}`;
+
+  const files = db.prepare(
+    "SELECT id FROM files WHERE id LIKE ? ORDER BY id DESC"
+  ).all(`${prefix}%`) as Array<{ id: string }>;
+
+  let maxSeq = 0;
+  for (const f of files) {
+    if (f.id && f.id.startsWith(prefix)) {
+      const seqStr = f.id.slice(prefix.length);
+      const num = parseInt(seqStr, 10);
+      if (!isNaN(num) && num > maxSeq) {
+        maxSeq = num;
+      }
+    }
+  }
+
+  const nextSeq = maxSeq + 1;
+  return `${prefix}${String(nextSeq).padStart(3, '0')}`;
 }
 
 // 1. List files with search, filtering, and pagination
@@ -179,6 +204,20 @@ router.get('/eligible', requireSuperadmin, (req, res) => {
   }
 });
 
+// Preview next File ID dynamically based on selected product
+router.get('/preview-id', (req, res) => {
+  try {
+    const { productId } = req.query;
+    if (!productId) {
+      return res.status(400).json({ error: 'productId is required' });
+    }
+    const nextId = generateNextFileId(productId as string);
+    res.json({ fileId: nextId });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to generate preview File ID' });
+  }
+});
+
 // 3. Retrieve single file by ID
 router.get('/:id', (req, res) => {
   try {
@@ -295,7 +334,7 @@ router.post('/', (req, res) => {
   }
 
   try {
-    const fileId = generateNextFileId();
+    const fileId = generateNextFileId(product_id);
     const loginDate = new Date().toISOString();
     const primaryBankId = banksList[0].bank_id;
     const primaryManager = banksList[0].bank_manager_name;

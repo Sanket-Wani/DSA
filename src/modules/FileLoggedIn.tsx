@@ -60,6 +60,7 @@ export const FileLoggedIn: React.FC = () => {
   // Inline Horizontal Form State
   const [isInlineCreating, setIsInlineCreating] = useState(false);
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const [previewFileId, setPreviewFileId] = useState<string>('');
 
   // Modals for Quick Add & Delete Confirmation
   const [fileToDelete, setFileToDelete] = useState<FileRecord | null>(null);
@@ -124,6 +125,27 @@ export const FileLoggedIn: React.FC = () => {
     }
   }, [page, statusFilter, search, viewMode]);
 
+  // Dynamically calculate and preview next File ID when Product is selected
+  useEffect(() => {
+    if (!productId) {
+      setPreviewFileId('');
+      return;
+    }
+    apiRequest<{ fileId: string }>(`/api/files/preview-id?productId=${productId}`)
+      .then(res => {
+        if (res && res.fileId) {
+          setPreviewFileId(res.fileId);
+        }
+      })
+      .catch(() => {
+        const yr = String(new Date().getFullYear()).slice(-2);
+        const prod = products.find(p => String(p.id) === String(productId));
+        const acr = (prod?.acronym || 'GEN').toUpperCase().trim();
+        const code = acr.length === 2 ? acr + 'X' : acr.slice(0, 3);
+        setPreviewFileId(`${yr}${code}...`);
+      });
+  }, [productId, products]);
+
   // Toggle inline New File Entry horizontal form row
   const handleToggleInlineCreate = () => {
     if (isInlineCreating) {
@@ -136,6 +158,7 @@ export const FileLoggedIn: React.FC = () => {
     const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
     
     setFormFileId('');
+    setPreviewFileId('');
     setFormLoginDate(formattedDate);
     setCompanyName('');
     setGstNo('');
@@ -1156,9 +1179,9 @@ export const FileLoggedIn: React.FC = () => {
                 type="text"
                 readOnly
                 placeholder="File ID (dynamic)"
-                value=""
+                value={previewFileId}
                 className="inline-field-input inline-field-input-readonly"
-                title="File ID is auto-assigned upon save"
+                title="Dynamically generated File ID (Year + Product Code + 3-digit Series)"
               />
 
               <input
