@@ -1133,6 +1133,233 @@ export const FileLoggedIn: React.FC = () => {
         </div>
       </div>
 
+      {/* Separate New File Entry Form Container Above Table */}
+      {isInlineCreating && (
+        <div className="separate-file-form-card">
+          {inlineError && (
+            <div className="inline-form-error-banner">
+              <span>{inlineError}</span>
+              <button
+                type="button"
+                onClick={() => setInlineError(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c', fontWeight: 'bold' }}
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          <div className="inline-file-form-grid">
+            {/* Column 1 */}
+            <div className="inline-file-col">
+              <input
+                type="text"
+                readOnly
+                placeholder="File ID (dynamic)"
+                value=""
+                className="inline-field-input inline-field-input-readonly"
+                title="File ID is auto-assigned upon save"
+              />
+
+              <input
+                type="text"
+                readOnly
+                placeholder="Date (autofetched)"
+                value={formLoginDate ? `Date: ${formLoginDate}` : ''}
+                className="inline-field-input inline-field-input-readonly"
+                title="Autofetched system login date"
+              />
+
+              <select
+                value={productId}
+                onChange={e => setProductId(e.target.value)}
+                className="inline-field-select"
+              >
+                <option value="">Product (dropdown) *</option>
+                {products.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.acronym} — {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Column 2 */}
+            <div className="inline-file-col">
+              <input
+                type="text"
+                placeholder="Clients Company name *"
+                value={companyName}
+                onChange={e => setCompanyName(e.target.value)}
+                className="inline-field-input"
+              />
+
+              <input
+                type="text"
+                placeholder="Clients name *"
+                value={clientName}
+                onChange={e => setClientName(e.target.value)}
+                className="inline-field-input"
+              />
+
+              <input
+                type="text"
+                placeholder="Clients GSTIN *"
+                maxLength={15}
+                value={gstNo}
+                onChange={e => setGstNo(e.target.value.toUpperCase())}
+                className="inline-field-input"
+                style={{ textTransform: 'uppercase' }}
+              />
+
+              <input
+                type="tel"
+                placeholder="Clients phone no."
+                value={clientPhone}
+                onChange={e => setClientPhone(e.target.value)}
+                className="inline-field-input"
+              />
+
+              <input
+                type="email"
+                placeholder="Clients email *"
+                value={clientEmail}
+                onChange={e => setClientEmail(e.target.value)}
+                className="inline-field-input"
+              />
+            </div>
+
+            {/* Column 3 */}
+            <div className="inline-file-col">
+              {banksList.map((b, idx) => (
+                <div key={idx} className="inline-bank-card">
+                  {banksList.length > 1 && (
+                    <div className="inline-bank-card-header">
+                      <span>Bank Allocation #{idx + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBankRow(idx)}
+                        style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '13px' }}
+                        title="Remove bank allocation"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+
+                  <select
+                    value={b.bank_id}
+                    onChange={e => handleUpdateBankRow(idx, 'bank_id', e.target.value)}
+                    className="inline-field-select"
+                  >
+                    <option value="">Bank (multiple banks selection allowed) *</option>
+                    {allBanks.map(ab => (
+                      <option key={ab.id} value={ab.id}>
+                        {ab.bank_name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    type="text"
+                    placeholder="Bank Manager / Consultant Name *"
+                    value={b.bank_manager_name}
+                    onChange={e => handleUpdateBankRow(idx, 'bank_manager_name', e.target.value)}
+                    className="inline-field-input"
+                  />
+
+                  <input
+                    type="number"
+                    placeholder="Sanction Loan Amount (₹) *"
+                    value={b.sanction_loan_amount}
+                    onChange={e => handleUpdateBankRow(idx, 'sanction_loan_amount', e.target.value)}
+                    className="inline-field-input"
+                  />
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={handleAddBankRow}
+                className="inline-add-bank-btn"
+              >
+                <Plus size={12} /> Add Another Bank
+              </button>
+            </div>
+
+            {/* Column 4 */}
+            <div className="inline-file-col">
+              <select
+                value={salesMemberId}
+                onChange={e => setSalesMemberId(e.target.value)}
+                className="inline-field-select"
+              >
+                <option value="">Office Sales Member Name *</option>
+                {salesMembers.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="text"
+                placeholder="Code *"
+                value={fileCode}
+                onChange={e => setFileCode(e.target.value)}
+                className="inline-field-input"
+              />
+
+              <input
+                type="text"
+                placeholder="Case Source"
+                value={caseSource}
+                onChange={e => setCaseSource(e.target.value)}
+                className="inline-field-input"
+              />
+            </div>
+
+            {/* Column 5 */}
+            <div className="inline-file-col">
+              <select
+                value={fileStatus}
+                onChange={e => setFileStatus(e.target.value as FileStatus)}
+                className="inline-field-select"
+              >
+                <option value="">File status</option>
+                {ALL_FILE_STATUSES.map(st => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Bottom Right Actions */}
+          <div className="new-file-form-bottom-actions">
+            <button
+              type="button"
+              onClick={() => {
+                setIsInlineCreating(false);
+                setInlineError(null);
+              }}
+              className="inline-btn-cancel"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveInlineEntry}
+              disabled={isLoading}
+              className="inline-btn-save"
+            >
+              <Check size={14} /> Save Entry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Data Table */}
       <div className="table-container">
         <table className="data-table">
@@ -1149,261 +1376,6 @@ export const FileLoggedIn: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {/* Inline Mini Horizontal Form Row */}
-            {isInlineCreating && (
-              <tr className="inline-file-entry-tr">
-                <td colSpan={8} className="inline-file-entry-td">
-                  <div className="inline-file-form-wrapper">
-                    <div className="inline-file-form-top-bar">
-                      <div className="inline-file-form-tag">
-                        New File Entry (Horizontal Form)
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span>Enter details across columns and click <strong>Save Entry</strong></span>
-                        <button
-                          type="button"
-                          onClick={() => setIsInlineCreating(false)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            color: '#64748b',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '11.5px',
-                            fontWeight: 500
-                          }}
-                        >
-                          <X size={13} /> Close
-                        </button>
-                      </div>
-                    </div>
-
-                    {inlineError && (
-                      <div className="inline-form-error-banner">
-                        <span>{inlineError}</span>
-                        <button
-                          type="button"
-                          onClick={() => setInlineError(null)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c', fontWeight: 'bold' }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="inline-file-form-grid">
-                      {/* Column 1 */}
-                      <div className="inline-file-col">
-                        <input
-                          type="text"
-                          readOnly
-                          placeholder="File ID (dynamic)"
-                          value=""
-                          className="inline-field-input inline-field-input-readonly"
-                          title="File ID is auto-assigned upon save"
-                        />
-
-                        <input
-                          type="text"
-                          readOnly
-                          placeholder="Date (autofetched)"
-                          value={formLoginDate ? `Date: ${formLoginDate}` : ''}
-                          className="inline-field-input inline-field-input-readonly"
-                          title="Autofetched system login date"
-                        />
-
-                        <select
-                          value={productId}
-                          onChange={e => setProductId(e.target.value)}
-                          className="inline-field-select"
-                        >
-                          <option value="">Product (dropdown) *</option>
-                          {products.map(p => (
-                            <option key={p.id} value={p.id}>
-                              {p.acronym} — {p.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Column 2 */}
-                      <div className="inline-file-col">
-                        <input
-                          type="text"
-                          placeholder="Clients Company name *"
-                          value={companyName}
-                          onChange={e => setCompanyName(e.target.value)}
-                          className="inline-field-input"
-                        />
-
-                        <input
-                          type="text"
-                          placeholder="Clients name *"
-                          value={clientName}
-                          onChange={e => setClientName(e.target.value)}
-                          className="inline-field-input"
-                        />
-
-                        <input
-                          type="text"
-                          placeholder="Clients GSTIN *"
-                          maxLength={15}
-                          value={gstNo}
-                          onChange={e => setGstNo(e.target.value.toUpperCase())}
-                          className="inline-field-input"
-                          style={{ textTransform: 'uppercase' }}
-                        />
-
-                        <input
-                          type="tel"
-                          placeholder="Clients phone no."
-                          value={clientPhone}
-                          onChange={e => setClientPhone(e.target.value)}
-                          className="inline-field-input"
-                        />
-
-                        <input
-                          type="email"
-                          placeholder="Clients email *"
-                          value={clientEmail}
-                          onChange={e => setClientEmail(e.target.value)}
-                          className="inline-field-input"
-                        />
-                      </div>
-
-                      {/* Column 3 */}
-                      <div className="inline-file-col">
-                        {banksList.map((b, idx) => (
-                          <div key={idx} className="inline-bank-card">
-                            {banksList.length > 1 && (
-                              <div className="inline-bank-card-header">
-                                <span>Bank Allocation #{idx + 1}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveBankRow(idx)}
-                                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '13px' }}
-                                  title="Remove bank allocation"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            )}
-
-                            <select
-                              value={b.bank_id}
-                              onChange={e => handleUpdateBankRow(idx, 'bank_id', e.target.value)}
-                              className="inline-field-select"
-                            >
-                              <option value="">Bank (multiple banks selection allowed) *</option>
-                              {allBanks.map(ab => (
-                                <option key={ab.id} value={ab.id}>
-                                  {ab.bank_name}
-                                </option>
-                              ))}
-                            </select>
-
-                            <input
-                              type="text"
-                              placeholder="Bank Manager / Consultant Name *"
-                              value={b.bank_manager_name}
-                              onChange={e => handleUpdateBankRow(idx, 'bank_manager_name', e.target.value)}
-                              className="inline-field-input"
-                            />
-
-                            <input
-                              type="number"
-                              placeholder="Sanction Loan Amount (₹) *"
-                              value={b.sanction_loan_amount}
-                              onChange={e => handleUpdateBankRow(idx, 'sanction_loan_amount', e.target.value)}
-                              className="inline-field-input"
-                            />
-                          </div>
-                        ))}
-
-                        <button
-                          type="button"
-                          onClick={handleAddBankRow}
-                          className="inline-add-bank-btn"
-                        >
-                          <Plus size={12} /> Add Another Bank
-                        </button>
-                      </div>
-
-                      {/* Column 4 */}
-                      <div className="inline-file-col">
-                        <select
-                          value={salesMemberId}
-                          onChange={e => setSalesMemberId(e.target.value)}
-                          className="inline-field-select"
-                        >
-                          <option value="">Office Sales Member Name *</option>
-                          {salesMembers.map(s => (
-                            <option key={s.id} value={s.id}>
-                              {s.name}
-                            </option>
-                          ))}
-                        </select>
-
-                        <input
-                          type="text"
-                          placeholder="Code *"
-                          value={fileCode}
-                          onChange={e => setFileCode(e.target.value)}
-                          className="inline-field-input"
-                        />
-
-                        <input
-                          type="text"
-                          placeholder="Case Source"
-                          value={caseSource}
-                          onChange={e => setCaseSource(e.target.value)}
-                          className="inline-field-input"
-                        />
-                      </div>
-
-                      {/* Column 5 */}
-                      <div className="inline-file-col">
-                        <select
-                          value={fileStatus}
-                          onChange={e => setFileStatus(e.target.value as FileStatus)}
-                          className="inline-field-select"
-                        >
-                          <option value="">File status</option>
-                          {ALL_FILE_STATUSES.map(st => (
-                            <option key={st} value={st}>
-                              {st}
-                            </option>
-                          ))}
-                        </select>
-
-                        <div className="inline-actions-group">
-                          <button
-                            type="button"
-                            onClick={handleSaveInlineEntry}
-                            disabled={isLoading}
-                            className="inline-btn-save"
-                          >
-                            <Check size={14} /> Save Entry
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsInlineCreating(false);
-                              setInlineError(null);
-                            }}
-                            className="inline-btn-cancel"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            )}
             {files.length === 0 ? (
               <tr>
                 <td colSpan={8} className="table-empty">
