@@ -400,7 +400,7 @@ export const Telecalling: React.FC = () => {
   const pendingCount = totalCount - completedCount;
 
   return (
-    <div className="page-content" style={{ maxWidth: '1600px', margin: '0 auto' }}>
+    <div className="page-content" style={{ maxWidth: '1600px', margin: '0 auto', paddingTop: '16px' }}>
       {/* Dynamic Keyframe & Audio wave animations */}
       <style>{`
         @keyframes pulseRing {
@@ -443,58 +443,6 @@ export const Telecalling: React.FC = () => {
           animation: pulseRing 1.6s infinite ease-in-out;
         }
       `}</style>
-
-      {/* Top Stats & Actions Bar */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
-        <div
-          style={{
-            padding: '6px 14px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '20px',
-            fontSize: '13px',
-            fontWeight: 600,
-            color: '#334155'
-          }}
-        >
-          Total Leads: <span style={{ color: '#0f172a', fontWeight: 700 }}>{totalCount}</span>
-        </div>
-        <div
-          style={{
-            padding: '6px 14px',
-            backgroundColor: '#ecfdf5',
-            border: '1px solid #a7f3d0',
-            borderRadius: '20px',
-            fontSize: '13px',
-            fontWeight: 600,
-            color: '#065f46'
-          }}
-        >
-          Completed: <span style={{ fontWeight: 700 }}>{completedCount}</span>
-        </div>
-        <div
-          style={{
-            padding: '6px 14px',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            borderRadius: '20px',
-            fontSize: '13px',
-            fontWeight: 600,
-            color: '#64748b'
-          }}
-        >
-          Pending: <span style={{ color: '#0f172a', fontWeight: 700 }}>{pendingCount}</span>
-        </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleDownloadSample}
-          icon={<Download size={14} />}
-          title="Download Excel template with sample Name and Phone Number columns"
-        >
-          Sample Template
-        </Button>
-      </div>
 
       {/* ========================================================================= */}
       {/* 3-SECTION LAYOUT MATCHING USER HANDDRAWN WIREFRAME                        */}
@@ -555,42 +503,53 @@ export const Telecalling: React.FC = () => {
                 </div>
               </div>
 
-              {uploadedFileName && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      padding: '4px 10px',
-                      backgroundColor: '#f1f5f9',
-                      borderRadius: '6px',
-                      color: '#475569'
-                    }}
-                  >
-                    {uploadedFileName}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setContacts([]);
-                      setUploadedFileName(null);
-                      setUploadSuccess(null);
-                      setUploadError(null);
-                    }}
-                    style={{
-                      border: 'none',
-                      background: 'none',
-                      color: '#dc2626',
-                      cursor: 'pointer',
-                      padding: '4px',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                    title="Remove uploaded leads"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {uploadedFileName && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        padding: '4px 10px',
+                        backgroundColor: '#f1f5f9',
+                        borderRadius: '6px',
+                        color: '#475569'
+                      }}
+                    >
+                      {uploadedFileName}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setContacts(INITIAL_DUMMY_CONTACTS);
+                        setUploadedFileName(null);
+                        setUploadSuccess(null);
+                        setUploadError(null);
+                      }}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        color: '#dc2626',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      title="Reset uploaded leads"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleDownloadSample}
+                  icon={<Download size={14} />}
+                  title="Download Excel template with sample Name and Phone Number columns"
+                >
+                  Sample Template
+                </Button>
+              </div>
             </div>
 
             {/* Hidden Input for file selection */}

@@ -373,9 +373,19 @@ export const CreateInvoices: React.FC = () => {
   const amountInWords = numberToWordsIndian(grandTotalAmount);
 
   return (
-    <div className="page-content">
+    <div className="page-content" style={{ paddingTop: '16px' }}>
       {/* Top Action Buttons Bar */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '24px' }}>
+      <div
+        style={{
+          maxWidth: '1200px',
+          margin: '0 auto 14px auto',
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: '12px',
+          flexWrap: 'wrap'
+        }}
+      >
         <Button
           variant="secondary"
           size="md"
