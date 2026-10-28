@@ -1181,7 +1181,7 @@ export const FileLoggedIn: React.FC = () => {
 
           <div className="new-file-form-6col-grid">
             {/* Column 1 Box: File ID, Date, Product */}
-            <div className="form-card-box">
+            <div className="form-card-box form-card-box-col1">
               <input
                 type="text"
                 readOnly
@@ -1203,7 +1203,7 @@ export const FileLoggedIn: React.FC = () => {
               <select
                 value={productId}
                 onChange={e => setProductId(e.target.value)}
-                className="inline-field-select"
+                className="inline-field-select form-field-row3-spacer"
                 title="Product (dropdown)"
               >
                 <option value="">Product (dropdown) *</option>
@@ -1216,7 +1216,7 @@ export const FileLoggedIn: React.FC = () => {
             </div>
 
             {/* Column 2 Box: Clients Company name, Clients name, Clients GSTIN */}
-            <div className="form-card-box">
+            <div className="form-card-box form-card-box-col2">
               <input
                 type="text"
                 placeholder="Clients Company name *"
@@ -1241,7 +1241,7 @@ export const FileLoggedIn: React.FC = () => {
                 maxLength={15}
                 value={gstNo}
                 onChange={e => setGstNo(e.target.value.toUpperCase())}
-                className="inline-field-input"
+                className="inline-field-input form-field-row3-spacer"
                 style={{ textTransform: 'uppercase' }}
                 title="Clients GSTIN"
               />
@@ -1332,12 +1332,12 @@ export const FileLoggedIn: React.FC = () => {
                     />
 
                     <div>
-                      {banksList.length === 1 ? (
+                      {idx === 0 ? (
                         <button
                           type="button"
                           onClick={handleAddBankRow}
                           className="inline-add-bank-btn"
-                          style={{ width: '100%' }}
+                          style={{ width: '100%', height: '34px' }}
                           title="Add another bank"
                         >
                           <Plus size={12} /> Add Bank
@@ -1348,17 +1348,17 @@ export const FileLoggedIn: React.FC = () => {
                             type="button"
                             onClick={() => handleRemoveBankRow(idx)}
                             className="inline-btn-cancel"
-                            style={{ height: '34px', padding: '0 8px', color: '#b91c1c' }}
+                            style={{ height: '34px', padding: '0 8px', color: '#b91c1c', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                             title="Remove this bank"
                           >
-                            <X size={12} />
+                            <X size={12} /> Remove
                           </button>
                           {idx === banksList.length - 1 ? (
                             <button
                               type="button"
                               onClick={handleAddBankRow}
                               className="inline-add-bank-btn"
-                              style={{ flex: 1 }}
+                              style={{ flex: 1, height: '34px' }}
                               title="Add another bank"
                             >
                               <Plus size={12} /> Add Bank

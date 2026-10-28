@@ -485,7 +485,7 @@
   display: grid;
   grid-template-columns: repeat(6, minmax(195px, 1fr));
   gap: 12px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .form-card-box {
@@ -495,9 +495,19 @@
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 6px;
   box-sizing: border-box;
+}
+
+.form-card-box-col1,
+.form-card-box-col2 {
+  min-height: 152px;
+  box-sizing: border-box;
+}
+
+.form-field-row3-spacer {
+  margin-top: 20px;
 }
 
 .form-6col-middle-area {
@@ -505,7 +515,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
 .form-middle-upper-box {
@@ -534,7 +544,8 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 100%;
+  align-self: stretch;
+  min-height: 152px;
 }
 
 .col-6-actions-bottom {
