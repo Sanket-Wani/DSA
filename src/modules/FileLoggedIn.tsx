@@ -1032,7 +1032,19 @@ export const FileLoggedIn: React.FC = () => {
   // VIEW: FILES TABLE LIST
   // -------------------------------------------------------------
   return (
-    <div className="page-content">
+    <div className={`page-content ${isInlineCreating ? 'has-active-form' : ''}`}>
+      {/* Backdrop to darken surrounding section and highlight the form */}
+      {isInlineCreating && (
+        <div
+          className="form-spotlight-backdrop"
+          onClick={() => {
+            setIsInlineCreating(false);
+            setInlineError(null);
+          }}
+          title="Click outside to cancel"
+        />
+      )}
+
       {/* Page Header */}
       <div className="page-header">
         <div>
