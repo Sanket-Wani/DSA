@@ -88,6 +88,72 @@ function formatDuration(sec: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+// Initial dummy lead contacts for demonstration and immediate workflow readiness
+const INITIAL_DUMMY_CONTACTS: LeadContact[] = [
+  {
+    id: 'lead-dummy-1',
+    name: 'Rahul Sharma',
+    rawPhone: '9820112345',
+    maskedPhone: '98******45',
+    status: 'pending'
+  },
+  {
+    id: 'lead-dummy-2',
+    name: 'Priya Deshmukh',
+    rawPhone: '9819234567',
+    maskedPhone: '98******67',
+    status: 'completed',
+    callDuration: 142,
+    disposition: 'Interested - Follow Up Scheduled',
+    notes: 'Interested in business loan of ₹25 Lakhs. Follow up on Monday.'
+  },
+  {
+    id: 'lead-dummy-3',
+    name: 'Amit Kulkarni',
+    rawPhone: '9867345678',
+    maskedPhone: '98******78',
+    status: 'pending'
+  },
+  {
+    id: 'lead-dummy-4',
+    name: 'Neha Joshi',
+    rawPhone: '9833456789',
+    maskedPhone: '98******89',
+    status: 'pending'
+  },
+  {
+    id: 'lead-dummy-5',
+    name: 'Vikram Patil',
+    rawPhone: '9822567890',
+    maskedPhone: '98******90',
+    status: 'completed',
+    callDuration: 85,
+    disposition: 'Documents Required',
+    notes: 'Requested checklist of ITR and bank statement documents via WhatsApp.'
+  },
+  {
+    id: 'lead-dummy-6',
+    name: 'Ananya Verma',
+    rawPhone: '9845671234',
+    maskedPhone: '98******34',
+    status: 'pending'
+  },
+  {
+    id: 'lead-dummy-7',
+    name: 'Suresh Bhosale',
+    rawPhone: '9890123456',
+    maskedPhone: '98******56',
+    status: 'pending'
+  },
+  {
+    id: 'lead-dummy-8',
+    name: 'Pooja Mehta',
+    rawPhone: '9870987654',
+    maskedPhone: '98******54',
+    status: 'pending'
+  }
+];
+
 export const Telecalling: React.FC = () => {
   // Section 1: Upload state
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
@@ -96,8 +162,8 @@ export const Telecalling: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Section 2: Contacts queue state
-  const [contacts, setContacts] = useState<LeadContact[]>([]);
+  // Section 2: Contacts queue state initialized with dummy records
+  const [contacts, setContacts] = useState<LeadContact[]>(INITIAL_DUMMY_CONTACTS);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'completed'>('all');
 
@@ -378,66 +444,56 @@ export const Telecalling: React.FC = () => {
         }
       `}</style>
 
-      {/* Page Header */}
-      <div className="page-header" style={{ marginBottom: '20px' }}>
-        <div>
-          <h1 className="page-title">Telecalling</h1>
-          <div className="page-subtitle">
-            Outbound calling dashboard • Upload leads, initiate masked outbound calls, and log call records.
-          </div>
+      {/* Top Stats & Actions Bar */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
+        <div
+          style={{
+            padding: '6px 14px',
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '20px',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: '#334155'
+          }}
+        >
+          Total Leads: <span style={{ color: '#0f172a', fontWeight: 700 }}>{totalCount}</span>
         </div>
-
-        {/* Lead Stats chips */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <div
-            style={{
-              padding: '6px 14px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '20px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#334155'
-            }}
-          >
-            Total Leads: <span style={{ color: '#0f172a', fontWeight: 700 }}>{totalCount}</span>
-          </div>
-          <div
-            style={{
-              padding: '6px 14px',
-              backgroundColor: '#ecfdf5',
-              border: '1px solid #a7f3d0',
-              borderRadius: '20px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#065f46'
-            }}
-          >
-            Completed: <span style={{ fontWeight: 700 }}>{completedCount}</span>
-          </div>
-          <div
-            style={{
-              padding: '6px 14px',
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '20px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#64748b'
-            }}
-          >
-            Pending: <span style={{ color: '#0f172a', fontWeight: 700 }}>{pendingCount}</span>
-          </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleDownloadSample}
-            icon={<Download size={14} />}
-            title="Download Excel template with sample Name and Phone Number columns"
-          >
-            Sample Template
-          </Button>
+        <div
+          style={{
+            padding: '6px 14px',
+            backgroundColor: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            borderRadius: '20px',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: '#065f46'
+          }}
+        >
+          Completed: <span style={{ fontWeight: 700 }}>{completedCount}</span>
         </div>
+        <div
+          style={{
+            padding: '6px 14px',
+            backgroundColor: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '20px',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: '#64748b'
+          }}
+        >
+          Pending: <span style={{ color: '#0f172a', fontWeight: 700 }}>{pendingCount}</span>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleDownloadSample}
+          icon={<Download size={14} />}
+          title="Download Excel template with sample Name and Phone Number columns"
+        >
+          Sample Template
+        </Button>
       </div>
 
       {/* ========================================================================= */}

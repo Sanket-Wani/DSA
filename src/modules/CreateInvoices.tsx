@@ -374,49 +374,40 @@ export const CreateInvoices: React.FC = () => {
 
   return (
     <div className="page-content">
-      {/* Top Page Header matching other modules */}
-      <div className="page-header" style={{ marginBottom: '24px' }}>
-        <div>
-          <h1 className="page-title">Create Invoices</h1>
-          <div className="page-subtitle">
-            Official Tax Invoice Format • Direct in-place editing, statutory GST calculation, and PDF generation.
-          </div>
-        </div>
+      {/* Top Action Buttons Bar */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '24px' }}>
+        <Button
+          variant="secondary"
+          size="md"
+          onClick={handleResetForm}
+          icon={<RefreshCw size={15} />}
+          title="Start a fresh blank invoice"
+        >
+          New Invoice
+        </Button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        {isViewOnly ? (
           <Button
-            variant="secondary"
+            variant="primary"
             size="md"
-            onClick={handleResetForm}
-            icon={<RefreshCw size={15} />}
-            title="Start a fresh blank invoice"
+            onClick={() => handleDownloadPdf(activeInvoiceId)}
+            icon={<Download size={16} />}
+            style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
           >
-            New Invoice
+            Download Invoice PDF
           </Button>
-
-          {isViewOnly ? (
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => handleDownloadPdf(activeInvoiceId)}
-              icon={<Download size={16} />}
-              style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
-            >
-              Download Invoice PDF
-            </Button>
-          ) : (
-            <Button
-              variant="primary"
-              size="md"
-              onClick={handleSaveInvoice}
-              disabled={!isFormValid || isSaving}
-              isLoading={isSaving}
-              icon={<FileText size={16} />}
-            >
-              Save Invoice
-            </Button>
-          )}
-        </div>
+        ) : (
+          <Button
+            variant="primary"
+            size="md"
+            onClick={handleSaveInvoice}
+            disabled={!isFormValid || isSaving}
+            isLoading={isSaving}
+            icon={<FileText size={16} />}
+          >
+            Save Invoice
+          </Button>
+        )}
       </div>
 
       {/* Success Notification Bar */}
