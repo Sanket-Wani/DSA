@@ -340,13 +340,12 @@
 }
 
 /* ==========================================================================
-   Dashboard 3-Card Deck & Dynamic Expansion (Notebook Design Spec)
+   Dashboard Merged-Style 3-Card Deck & Container (Exact Notebook Spec)
    ========================================================================== */
 
 .dashboard-deck {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
   margin-top: var(--space-2);
 }
 
@@ -355,51 +354,48 @@
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-4);
   position: relative;
+  z-index: 2;
+  margin-bottom: -2px; /* Overlaps container border to achieve seamless merge */
 }
 
 .dashboard-card {
   position: relative;
-  background-color: var(--color-surface);
+  background-color: var(--color-surface-subtle);
   border: 2px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-5);
+  padding: var(--space-4) var(--space-5);
   cursor: pointer;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 165px;
+  min-height: 145px;
   text-align: left;
-  transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
-.dashboard-card:hover {
+.dashboard-card:hover:not(.active) {
   border-color: var(--color-border-strong);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
-  transform: translateY(-2px);
-}
-
-.dashboard-card.active {
-  border-color: var(--color-action-primary);
   background-color: var(--color-surface);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
 }
 
-/* Downward connector notch pointing from active card into expanded section below */
-.dashboard-card.active::after {
-  content: '';
-  position: absolute;
-  bottom: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 10px solid transparent;
-  border-right: 10px solid transparent;
-  border-top: 10px solid var(--color-action-primary);
-  z-index: 5;
+/* Inactive cards */
+.dashboard-card:not(.active) {
+  border-bottom: 2px solid var(--color-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Active Merged Card — Merges directly into the content container below */
+.dashboard-card.active {
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-action-primary);
+  border-bottom: 2px solid var(--color-surface); /* Clears border to physically merge into content! */
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  z-index: 10;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+  transform: none;
 }
 
 .dashboard-card-top {
@@ -410,8 +406,8 @@
 }
 
 .dashboard-card-icon-badge {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
@@ -461,14 +457,14 @@
   font-size: 17px;
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .dashboard-card-desc {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   line-height: 1.4;
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
 .dashboard-card-metrics {
@@ -512,29 +508,37 @@
   font-weight: var(--font-weight-semibold);
 }
 
-/* Expanded Section Container below the cards */
-.dashboard-section-container {
-  margin-top: var(--space-3);
+/* Merged Container — Seamlessly welded with the active card */
+.dashboard-merged-container {
+  position: relative;
+  z-index: 1;
   background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 2px solid var(--color-action-primary);
   border-radius: var(--radius-lg);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
   overflow: hidden;
-  animation: fadeInSlideDown 200ms ease;
+  animation: fadeInMerged 180ms ease;
 }
 
-@keyframes fadeInSlideDown {
+@keyframes fadeInMerged {
   from {
-    opacity: 0;
-    transform: translateY(-8px);
+    opacity: 0.85;
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
-.dashboard-section-header {
+/* Seamless corner alignment for Card 1 and Card 3 */
+.dashboard-merged-container.active-card-files {
+  border-top-left-radius: 0;
+}
+
+.dashboard-merged-container.active-card-accounts {
+  border-top-right-radius: 0;
+}
+
+.dashboard-section-subnav {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -543,23 +547,6 @@
   border-bottom: 1px solid var(--color-border);
   gap: var(--space-3);
   flex-wrap: wrap;
-}
-
-.dashboard-section-header-left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.dashboard-section-header-title {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-}
-
-.dashboard-section-header-subtitle {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
 }
 
 .dashboard-section-tabs {
@@ -572,7 +559,7 @@
 }
 
 .dashboard-section-tab-btn {
-  padding: 4px 10px;
+  padding: 4px 12px;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   border-radius: var(--radius-xs);
@@ -590,33 +577,7 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.dashboard-empty-prompt {
-  background-color: var(--color-surface);
-  border: 1px dashed var(--color-border-strong);
-  border-radius: var(--radius-lg);
-  padding: var(--space-10) var(--space-6);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
-  color: var(--color-text-secondary);
-}
-
-.dashboard-empty-prompt-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background-color: var(--color-surface-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-tertiary);
-}
-
-/* Ensure embedded module content fits cleanly without duplicate outer padding */
+/* Embedded content normalization */
 .dashboard-embedded-content .page-content {
   padding: var(--space-4) var(--space-5);
   max-width: 100%;
@@ -625,8 +586,14 @@
 @media (max-width: 900px) {
   .dashboard-cards-grid {
     grid-template-columns: 1fr;
+    margin-bottom: var(--space-3);
   }
-  .dashboard-card.active::after {
-    display: none;
+  .dashboard-card.active {
+    border-bottom: 2px solid var(--color-action-primary);
+    border-radius: var(--radius-lg);
+  }
+  .dashboard-merged-container {
+    border-top-left-radius: var(--radius-lg) !important;
+    border-top-right-radius: var(--radius-lg) !important;
   }
 }
