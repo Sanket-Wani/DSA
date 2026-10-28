@@ -27,7 +27,7 @@ export const FileAutocompleteInput: React.FC<FileAutocompleteInputProps> = ({
   onSelectFile,
   error,
   helperText,
-  placeholder = 'e.g. 26BLX001 (click or type to search)',
+  placeholder = 'e.g. 26-BLX-001 (click or type to search)',
   id,
   inputStyle,
   style

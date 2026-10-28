@@ -368,6 +368,7 @@ async function runTests() {
   assert(ids.length === 3, 'Generated 3 sequential file IDs');
   assert(new Set(ids).size === 3, 'All 3 file IDs are completely distinct and non-duplicate');
   assert(ids[0] < ids[1] && ids[1] < ids[2], 'File IDs strictly follow sequential numbering');
+  assert(ids[0].includes('-'), 'File ID contains hyphens between combinations e.g. 26-BLX-001');
 
   // Test 16: Number to Words Indian Currency Formatter
   console.log('\n--- 16. Indian Currency Words Formatter ---');

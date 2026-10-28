@@ -106,17 +106,75 @@ export const FileLoggedIn: React.FC = () => {
     setFileStatus(prevStatusBeforeDisburse || 'WIP (Work in Progress)');
   };
 
-  const handleConfirmDisburseModal = () => {
+  const handleConfirmDisburseModal = async () => {
     const cleanStr = disburseSanctionAmount.replace(/,/g, '').trim();
     const amt = Number(cleanStr);
     if (isNaN(amt) || amt <= 0) {
       setDisburseError('Please enter a valid sanction loan amount greater than ₹0.');
       return;
     }
-    setBanksList(prev => prev.map((b, idx) => idx === 0 ? { ...b, sanction_loan_amount: String(amt) } : b));
+    const updatedBanks = banksList.map((b, idx) => idx === 0 ? { ...b, sanction_loan_amount: String(amt) } : b);
+    setBanksList(updatedBanks);
     setFileStatus('Disburse');
     setIsDisburseModalOpen(false);
     setDisburseError(null);
+
+    // Directly save the sanction amount and move record to the Disbursement section
+    await executeDirectDisburseSave(amt, updatedBanks);
+  };
+
+  const executeDirectDisburseSave = async (sanctionAmt: number, currentBanks: BankFormRow[]) => {
+    setIsLoading(true);
+    setInlineError(null);
+    try {
+      const payload = {
+        company_name: companyName.trim(),
+        gst_no: gstNo.trim().toUpperCase(),
+        client_name: clientName.trim(),
+        client_email: clientEmail.trim(),
+        client_phone: clientPhone.trim(),
+        product_id: Number(productId),
+        firm_id: Number(firmId) || 1,
+        sales_member_id: Number(salesMemberId),
+        code: fileCode.trim(),
+        source: caseSource.trim(),
+        status: 'Disburse' as FileStatus,
+        banks: currentBanks.map(b => ({
+          bank_id: Number(b.bank_id),
+          bank_manager_name: b.bank_manager_name.trim(),
+          sanction_loan_amount: Number(b.sanction_loan_amount) || sanctionAmt
+        }))
+      };
+
+      if (editingFileId) {
+        // UPDATE existing record
+        await apiRequest<{ file: FileRecord }>(`/api/files/${editingFileId}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        });
+        setSuccessMsg(`File "${editingFileId}" marked as Disburse with sanction amount ₹${sanctionAmt.toLocaleString('en-IN')} and moved to Disbursement section.`);
+      } else {
+        // CREATE new record(s)
+        const res = await apiRequest<{ file: FileRecord; files?: FileRecord[]; count?: number }>('/api/files', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        const targetId = res.files ? res.files.map(f => f.id).join(', ') : res.file.id;
+        setSuccessMsg(`File "${targetId}" marked as Disburse with sanction amount ₹${sanctionAmt.toLocaleString('en-IN')} and moved to Disbursement section.`);
+      }
+
+      // Close the editable form completely and revert to clean data view
+      setIsInlineCreating(false);
+      setEditingFileId(null);
+      setSelectedFile(null);
+      setSelectedFileId(null);
+      setInlineError(null);
+      await fetchFiles();
+    } catch (err: any) {
+      setInlineError(err.message || 'Failed to save and disburse file');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 1. Fetch Files list
@@ -1949,39 +2007,6 @@ export const FileLoggedIn: React.FC = () => {
                 />
               </div>
 
-              {/* Quick Suggestion Chips */}
-              <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
-                {[
-                  { label: '₹10 L', val: 1000000 },
-                  { label: '₹25 L', val: 2500000 },
-                  { label: '₹50 L', val: 5000000 },
-                  { label: '₹75 L', val: 7500000 },
-                  { label: '₹1 Cr', val: 10000000 }
-                ].map(chip => (
-                  <button
-                    key={chip.val}
-                    type="button"
-                    onClick={() => {
-                      setDisburseSanctionAmount(String(chip.val));
-                      setDisburseError(null);
-                    }}
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 500,
-                      padding: '3px 8px',
-                      borderRadius: '4px',
-                      border: '1px solid #cbd5e1',
-                      backgroundColor: Number(disburseSanctionAmount) === chip.val ? '#eff6ff' : '#f8fafc',
-                      color: Number(disburseSanctionAmount) === chip.val ? '#1d4ed8' : '#334155',
-                      borderColor: Number(disburseSanctionAmount) === chip.val ? '#93c5fd' : '#cbd5e1',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {chip.label}
-                  </button>
-                ))}
-              </div>
-
               {/* Indian Currency Words Preview */}
               {Number(disburseSanctionAmount) > 0 && (
                 <div
@@ -2005,21 +2030,6 @@ export const FileLoggedIn: React.FC = () => {
                   {disburseError}
                 </div>
               )}
-            </div>
-
-            {/* Workflow Explanation Banner */}
-            <div
-              style={{
-                padding: '10px 12px',
-                backgroundColor: '#eff6ff',
-                border: '1px solid #bfdbfe',
-                borderRadius: '6px',
-                fontSize: '12px',
-                color: '#1e40af',
-                lineHeight: 1.5
-              }}
-            >
-              <strong>Note:</strong> Once you confirm and save the record with <em>Disburse</em> status, this file will automatically move to the <strong>Disbursement</strong> section carrying this sanction amount and will be removed from the File Logged-in list.
             </div>
           </div>
         </Modal>

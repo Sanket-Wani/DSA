@@ -297,6 +297,28 @@ export function runMigration() {
       if (!ledgerCols.some(c => c.name === 'tds_section')) {
         db.exec("ALTER TABLE accounts_ledger ADD COLUMN tds_section TEXT DEFAULT '194J'");
       }
+
+      // 11. Migrate file IDs to hyphenated combination format e.g. 26BLX003 -> 26-BLX-003
+      const legacyFiles = db.prepare(`
+        SELECT id FROM files WHERE id GLOB '[0-9][0-9][A-Za-z][A-Za-z][A-Za-z]*' AND id NOT LIKE '%-%'
+      `).all() as Array<{ id: string }>;
+
+      const fileRegex = /^([0-9]{2})([A-Za-z0-9]{3})([0-9]+)$/;
+      const updateFile = db.prepare('UPDATE files SET id = ? WHERE id = ?');
+      const updateFileBanks = db.prepare('UPDATE file_banks SET file_id = ? WHERE file_id = ?');
+      const updateDisb = db.prepare('UPDATE disbursements SET file_id = ? WHERE file_id = ?');
+      const updateInv = db.prepare('UPDATE invoices SET file_id = ? WHERE file_id = ?');
+
+      for (const lf of legacyFiles) {
+        const match = lf.id.match(fileRegex);
+        if (match) {
+          const newId = `${match[1]}-${match[2].toUpperCase()}-${match[3]}`;
+          updateFile.run(newId, lf.id);
+          updateFileBanks.run(newId, lf.id);
+          updateDisb.run(newId, lf.id);
+          updateInv.run(newId, lf.id);
+        }
+      }
     })();
   } finally {
     db.pragma('foreign_keys = ON');

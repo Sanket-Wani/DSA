@@ -30,8 +30,8 @@ export function formatProductCode(acronym: string): string {
 }
 
 // Helper to generate sequential File ID(s):
-// Formula: current year (2 digits e.g. "26") + Product acronym (3 chars, 'X' suffix if 2) + series of that product (3 digits)
-// e.g. 26BLX001, 26LAP001
+// Formula: current year (2 digits e.g. "26") + '-' + Product acronym (3 chars, 'X' suffix if 2) + '-' + series of that product (3 digits)
+// e.g. 26-BLX-001, 26-LAP-001
 export function generateNextFileIds(productId?: number | string, count = 1): string[] {
   const currentYear = new Date().getFullYear();
   const yearPrefix = String(currentYear).slice(-2); // e.g. "26"
@@ -44,16 +44,22 @@ export function generateNextFileIds(productId?: number | string, count = 1): str
     }
   }
 
-  const prefix = `${yearPrefix}${productCode}`;
+  const hyphenPrefix = `${yearPrefix}-${productCode}-`;
+  const legacyPrefix = `${yearPrefix}${productCode}`;
 
   const files = db.prepare(
-    "SELECT id FROM files WHERE id LIKE ? ORDER BY id DESC"
-  ).all(`${prefix}%`) as Array<{ id: string }>;
+    "SELECT id FROM files WHERE id LIKE ? OR id LIKE ? ORDER BY id DESC"
+  ).all(`${hyphenPrefix}%`, `${legacyPrefix}%`) as Array<{ id: string }>;
 
   let maxSeq = 0;
   for (const f of files) {
-    if (f.id && f.id.startsWith(prefix)) {
-      const seqStr = f.id.slice(prefix.length);
+    if (f.id) {
+      let seqStr = '';
+      if (f.id.startsWith(hyphenPrefix)) {
+        seqStr = f.id.slice(hyphenPrefix.length);
+      } else if (f.id.startsWith(legacyPrefix)) {
+        seqStr = f.id.slice(legacyPrefix.length);
+      }
       const num = parseInt(seqStr, 10);
       if (!isNaN(num) && num > maxSeq) {
         maxSeq = num;
@@ -64,7 +70,7 @@ export function generateNextFileIds(productId?: number | string, count = 1): str
   const countNum = Math.max(1, count);
   const ids: string[] = [];
   for (let i = 1; i <= countNum; i++) {
-    ids.push(`${prefix}${String(maxSeq + i).padStart(3, '0')}`);
+    ids.push(`${hyphenPrefix}${String(maxSeq + i).padStart(3, '0')}`);
   }
   return ids;
 }
