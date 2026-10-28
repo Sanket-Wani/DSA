@@ -447,6 +447,30 @@ async function runTests() {
   assert(updatedLedger.tds_received_date === '2026-10-28', 'TDS received date persisted');
   assert(updatedLedger.tds_section === '194J', 'TDS section persisted as 194J');
 
+  // Test 21: Automated Status and Color Computation Logic
+  console.log('\n--- 21. Automatic Section & Record Status Logic ---');
+  const { computeSectionStatus, computeRecordStatus } = await import('../src/modules/Accounts.js');
+
+  // Section status rules:
+  // 0 / empty -> Pending (Red)
+  assert(computeSectionStatus(0, 100000) === 'Pending', 'Entered 0 against 100,000 -> Pending (Red)');
+  assert(computeSectionStatus(-5, 100000) === 'Pending', 'Negative value -> Pending (Red)');
+  // > 0 and < total -> Partial (Yellow)
+  assert(computeSectionStatus(50000, 100000) === 'Partial', 'Entered 50,000 against 100,000 -> Partial (Yellow)');
+  assert(computeSectionStatus(99999, 100000) === 'Partial', 'Entered 99,999 against 100,000 -> Partial (Yellow)');
+  // >= total -> Complete (Green)
+  assert(computeSectionStatus(100000, 100000) === 'Complete', 'Entered 100,000 against 100,000 -> Complete (Green)');
+  assert(computeSectionStatus(105000, 100000) === 'Complete', 'Entered 105,000 against 100,000 -> Complete (Green)');
+
+  // Record status rules:
+  // All 3 sections entered 0 -> Pending (Red record)
+  assert(computeRecordStatus(0, 100000, 0, 18000, 0, 2000) === 'Pending', 'All 3 sections 0 -> Record status is Pending (Red)');
+  // At least one partial -> Partial (Yellow record)
+  assert(computeRecordStatus(50000, 100000, 0, 18000, 0, 2000) === 'Partial', 'At least one partial -> Record status is Partial (Yellow)');
+  assert(computeRecordStatus(100000, 100000, 9000, 18000, 2000, 2000) === 'Partial', 'One section partial with others complete -> Record status is Partial (Yellow)');
+  // All 3 complete -> Complete (Green record)
+  assert(computeRecordStatus(100000, 100000, 18000, 18000, 2000, 2000) === 'Complete', 'All 3 sections complete -> Record status is Complete (Green)');
+
   // Cleanup test artifacts
   db.prepare('DELETE FROM disbursements WHERE file_id = ?').run(fileId1);
   db.prepare('DELETE FROM accounts_ledger WHERE invoice_id = ?').run(invId);
