@@ -102,16 +102,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
 
   return (
     <div className="page-content">
-      {/* Dashboard Heading Row */}
-      <div className="page-header" style={{ marginBottom: '24px' }}>
-        <div>
-          <h1 className="page-title" style={{ fontSize: '24px', fontWeight: 600, color: '#111827', margin: 0 }}>Dashboard</h1>
-          <div className="page-subtitle" style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
-            Overview of loan files, disbursements, and accounts ledger.
-          </div>
-        </div>
-      </div>
-
       <div className="dashboard-deck">
         {/* The 3 Cards Row */}
         <div className="dashboard-cards-grid" role="tablist" aria-label="Dashboard Modules">
