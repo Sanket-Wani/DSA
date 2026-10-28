@@ -472,12 +472,13 @@
    Separate Horizontal File Entry Form (New File Entry)
    ======================================================== */
 .separate-file-form-card {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-top: 3px solid #0f172a;
   border-radius: 8px;
-  padding: 16px 20px;
+  padding: 14px 18px;
   margin-bottom: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 10px -3px rgba(15, 23, 42, 0.04);
 }
 
 .inline-file-form-grid {
@@ -490,13 +491,13 @@
 .inline-file-col {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 .inline-field-group {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .inline-field-label {
@@ -516,9 +517,9 @@
 
 .inline-field-input,
 .inline-field-select {
-  height: 36px;
-  padding: 6px 12px;
-  font-size: 12.5px;
+  height: 34px;
+  padding: 5px 10px;
+  font-size: 12px;
   color: #0f172a;
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
@@ -548,17 +549,17 @@
   cursor: default;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 .inline-bank-card {
   background-color: #ffffff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   position: relative;
 }
 
@@ -566,17 +567,17 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   color: #64748b;
 }
 
 .inline-add-bank-btn {
-  background: none;
-  border: 1px dashed #cbd5e1;
+  background: #ffffff;
+  border: 1px dashed #94a3b8;
   border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 11.5px;
+  padding: 4px 8px;
+  font-size: 11px;
   font-weight: 600;
   color: #475569;
   cursor: pointer;
@@ -585,11 +586,11 @@
   justify-content: center;
   gap: 4px;
   transition: all 150ms ease;
-  height: 34px;
+  height: 30px;
 }
 
 .inline-add-bank-btn:hover {
-  background-color: #ffffff;
+  background-color: #f8fafc;
   border-color: #0f172a;
   color: #0f172a;
 }
@@ -598,31 +599,31 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 10px;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid #f1f5f9;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
 }
 
 .new-file-form-bottom-actions .inline-btn-cancel {
   width: auto;
-  min-width: 90px;
-  padding: 0 16px;
+  min-width: 85px;
+  padding: 0 14px;
 }
 
 .new-file-form-bottom-actions .inline-btn-save {
   width: auto;
-  min-width: 120px;
-  padding: 0 20px;
+  min-width: 115px;
+  padding: 0 18px;
 }
 
 .inline-btn-save {
-  height: 36px;
+  height: 34px;
   background-color: #0f172a;
   color: #ffffff;
   border: 1px solid #0f172a;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
@@ -642,12 +643,12 @@
 }
 
 .inline-btn-cancel {
-  height: 36px;
+  height: 34px;
   background-color: #ffffff;
   color: #475569;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;
