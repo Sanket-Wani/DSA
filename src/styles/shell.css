@@ -500,16 +500,6 @@
   box-sizing: border-box;
 }
 
-.form-card-box-col1,
-.form-card-box-col2 {
-  min-height: 152px;
-  box-sizing: border-box;
-}
-
-.form-field-row3-spacer {
-  margin-top: 20px;
-}
-
 .form-6col-middle-area {
   grid-column: 3 / span 3;
   display: flex;
