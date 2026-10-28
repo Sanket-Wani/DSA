@@ -179,6 +179,12 @@ export function runMigration() {
       if (!clientCols.some(c => c.name === 'client_phone')) {
         db.exec("ALTER TABLE clients ADD COLUMN client_phone TEXT");
       }
+
+      // 8. Add firm_id column to files table if missing
+      const fileCols = db.prepare("PRAGMA table_info(files)").all() as any[];
+      if (!fileCols.some(c => c.name === 'firm_id')) {
+        db.exec("ALTER TABLE files ADD COLUMN firm_id INTEGER REFERENCES firms(id) DEFAULT 1");
+      }
     })();
   } finally {
     db.pragma('foreign_keys = ON');

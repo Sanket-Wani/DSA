@@ -274,8 +274,8 @@ router.post('/', (req, res) => {
     company_name,
     gst_no,
     client_name,
-    client_email,
-    client_phone,
+    client_email = '',
+    client_phone = '',
     product_id,
     bank_id,
     bank_manager_name,
@@ -283,16 +283,16 @@ router.post('/', (req, res) => {
     sales_member_id,
     code,
     source,
-    sanction_loan_amount,
-    status = 'In Progress'
+    sanction_loan_amount = 0,
+    status = 'In Progress',
+    firm_id = 1
   } = req.body;
 
   // Validation
   const errors: string[] = [];
   if (!company_name?.trim()) errors.push("Client's Company name is required");
-  if (!gst_no?.trim()) errors.push("Client's GST no. is required");
   if (!client_name?.trim()) errors.push("Client name is required");
-  if (!client_email?.trim() || !client_email.includes('@')) errors.push("Valid client email ID is required");
+  if (client_email?.trim() && !client_email.includes('@')) errors.push("Valid client email ID is required");
   if (!product_id) errors.push("Product selection is required");
   if (!sales_member_id) errors.push("Office sales member selection is required");
   if (!code?.trim()) errors.push("Code is required");
@@ -308,18 +308,14 @@ router.post('/', (req, res) => {
     for (const [idx, b] of banksList.entries()) {
       if (!b.bank_id) errors.push(`Bank ${idx + 1} selection is required`);
       if (!b.bank_manager_name) errors.push(`Bank ${idx + 1} manager name is required`);
-      if (b.sanction_loan_amount <= 0) errors.push(`Bank ${idx + 1} sanction amount must be positive`);
     }
   } else {
     if (!bank_id) errors.push("Bank selection is required");
     if (!bank_manager_name?.trim()) errors.push("Bank manager/Consultant name is required");
-    if (sanction_loan_amount === undefined || isNaN(Number(sanction_loan_amount)) || Number(sanction_loan_amount) <= 0) {
-      errors.push("Valid positive Sanction Loan Amount is required");
-    }
     banksList = [{
       bank_id: Number(bank_id),
       bank_manager_name: String(bank_manager_name || '').trim(),
-      sanction_loan_amount: Number(sanction_loan_amount)
+      sanction_loan_amount: Number(sanction_loan_amount) || 0
     }];
   }
 
@@ -338,7 +334,9 @@ router.post('/', (req, res) => {
     const loginDate = new Date().toISOString();
     const primaryBankId = banksList[0].bank_id;
     const primaryManager = banksList[0].bank_manager_name;
-    const totalSanction = banksList.reduce((sum, b) => sum + b.sanction_loan_amount, 0);
+    const totalSanction = banksList.reduce((sum, b) => sum + (Number(b.sanction_loan_amount) || 0), 0);
+    const finalEmail = client_email?.trim() || `${company_name.trim().toLowerCase().replace(/[^a-z0-9]/g, '') || 'client'}@vinayakassociates.in`;
+    const finalGst = gst_no?.trim() ? gst_no.trim().toUpperCase() : 'URP';
 
     const insertTransaction = db.transaction(() => {
       // 1. Find or create client
@@ -348,18 +346,18 @@ router.post('/', (req, res) => {
       if (existingClient) {
         clientId = existingClient.id;
         db.prepare('UPDATE clients SET gst_no = ?, client_name = ?, client_email = ?, client_phone = ? WHERE id = ?').run(
-          gst_no.trim(),
+          finalGst,
           client_name.trim(),
-          client_email.trim(),
+          finalEmail,
           client_phone ? client_phone.trim() : null,
           clientId
         );
       } else {
         const cInfo = db.prepare('INSERT INTO clients (company_name, gst_no, client_name, client_email, client_phone, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
           company_name.trim(),
-          gst_no.trim(),
+          finalGst,
           client_name.trim(),
-          client_email.trim(),
+          finalEmail,
           client_phone ? client_phone.trim() : null,
           loginDate
         );
@@ -389,8 +387,8 @@ router.post('/', (req, res) => {
         INSERT INTO files (
           id, login_date, client_id, bank_id, product_id, sales_member_id,
           bank_manager_name, code, source, sanction_loan_amount, status,
-          created_by, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          created_by, created_at, firm_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         fileId,
         loginDate,
@@ -404,7 +402,8 @@ router.post('/', (req, res) => {
         totalSanction,
         status,
         req.user?.id || null,
-        loginDate
+        loginDate,
+        Number(firm_id) || 1
       );
 
       // 6. Insert file_banks

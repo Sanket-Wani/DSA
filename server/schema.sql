@@ -100,7 +100,8 @@ CREATE TABLE IF NOT EXISTS files (
   created_at TEXT NOT NULL,
   reviewed_by INTEGER REFERENCES users(id),
   reviewed_at TEXT,
-  review_remarks TEXT
+  review_remarks TEXT,
+  firm_id INTEGER REFERENCES firms(id) DEFAULT 1
 );
 
 CREATE INDEX IF NOT EXISTS idx_files_status ON files(status);
