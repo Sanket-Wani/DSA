@@ -3,6 +3,7 @@ import { runSeed } from '../server/seed.js';
 import { calculateGst } from '../server/services/taxService.js';
 import { generateProductAcronym } from '../server/routes/masterData.js';
 import { generateInvoicePdf } from '../server/services/pdfService.js';
+import { generateNextFileIds } from '../server/routes/files.js';
 
 let passed = 0;
 let failed = 0;
@@ -360,6 +361,13 @@ async function runTests() {
   db.prepare('DELETE FROM files WHERE id = ?').run(testEditFileId);
   const deletedCheck = db.prepare('SELECT id FROM files WHERE id = ?').get(testEditFileId);
   assert(deletedCheck === undefined, 'File and associated bank allocations successfully deleted');
+
+  // Test 15: Multi-Bank Individual File Creation
+  console.log('\n--- 15. Multi-Bank Individual File Records Generation ---');
+  const ids = generateNextFileIds(1, 3);
+  assert(ids.length === 3, 'Generated 3 sequential file IDs');
+  assert(new Set(ids).size === 3, 'All 3 file IDs are completely distinct and non-duplicate');
+  assert(ids[0] < ids[1] && ids[1] < ids[2], 'File IDs strictly follow sequential numbering');
 
   // Summary
   console.log(`\n======================================================`);

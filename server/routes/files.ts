@@ -29,10 +29,10 @@ export function formatProductCode(acronym: string): string {
   return clean.padEnd(3, 'X');
 }
 
-// Helper to generate sequential File ID:
+// Helper to generate sequential File ID(s):
 // Formula: current year (2 digits e.g. "26") + Product acronym (3 chars, 'X' suffix if 2) + series of that product (3 digits)
 // e.g. 26BLX001, 26LAP001
-export function generateNextFileId(productId?: number | string): string {
+export function generateNextFileIds(productId?: number | string, count = 1): string[] {
   const currentYear = new Date().getFullYear();
   const yearPrefix = String(currentYear).slice(-2); // e.g. "26"
 
@@ -61,14 +61,22 @@ export function generateNextFileId(productId?: number | string): string {
     }
   }
 
-  const nextSeq = maxSeq + 1;
-  return `${prefix}${String(nextSeq).padStart(3, '0')}`;
+  const countNum = Math.max(1, count);
+  const ids: string[] = [];
+  for (let i = 1; i <= countNum; i++) {
+    ids.push(`${prefix}${String(maxSeq + i).padStart(3, '0')}`);
+  }
+  return ids;
+}
+
+export function generateNextFileId(productId?: number | string): string {
+  return generateNextFileIds(productId, 1)[0];
 }
 
 // 1. List files with search, filtering, and pagination
 router.get('/', (req, res) => {
   try {
-    const { status, search, page = '1', limit = '10' } = req.query;
+    const { status, firm_id, search, page = '1', limit = '10' } = req.query;
     const pageNum = Math.max(1, parseInt(String(page), 10) || 1);
     const limitNum = Math.max(1, Math.min(100, parseInt(String(limit), 10) || 10));
     const offset = (pageNum - 1) * limitNum;
@@ -90,10 +98,15 @@ router.get('/', (req, res) => {
       conditions.push("f.status != 'Disburse'");
     }
 
+    if (firm_id && firm_id !== 'All') {
+      conditions.push('f.firm_id = ?');
+      params.push(Number(firm_id));
+    }
+
     if (search && String(search).trim()) {
       const term = `%${String(search).trim()}%`;
-      conditions.push('(f.id LIKE ? OR c.company_name LIKE ? OR c.client_name LIKE ? OR c.gst_no LIKE ? OR p.name LIKE ? OR p.acronym LIKE ? OR b.bank_name LIKE ? OR s.name LIKE ? OR f.code LIKE ?)');
-      params.push(term, term, term, term, term, term, term, term, term);
+      conditions.push('(f.id LIKE ? OR c.company_name LIKE ? OR c.client_name LIKE ? OR c.gst_no LIKE ? OR p.name LIKE ? OR p.acronym LIKE ? OR b.bank_name LIKE ? OR s.name LIKE ? OR f.code LIKE ? OR fm.firm_name LIKE ?)');
+      params.push(term, term, term, term, term, term, term, term, term, term);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -105,6 +118,7 @@ router.get('/', (req, res) => {
       JOIN products p ON f.product_id = p.id
       JOIN banks b ON f.bank_id = b.id
       JOIN sales_members s ON f.sales_member_id = s.id
+      LEFT JOIN firms fm ON f.firm_id = fm.id
       ${whereClause}
     `;
 
@@ -119,6 +133,7 @@ router.get('/', (req, res) => {
         f.bank_manager_name,
         f.sanction_loan_amount,
         f.status,
+        f.firm_id,
         f.created_at,
         f.reviewed_at,
         f.review_remarks,
@@ -136,12 +151,14 @@ router.get('/', (req, res) => {
         b.bank_gst_no,
         s.id as sales_member_id,
         s.name as sales_member_name,
+        COALESCE(fm.firm_name, 'Mavin Credits') as firm_name,
         u_rev.full_name as reviewer_name
       FROM files f
       JOIN clients c ON f.client_id = c.id
       JOIN products p ON f.product_id = p.id
       JOIN banks b ON f.bank_id = b.id
       JOIN sales_members s ON f.sales_member_id = s.id
+      LEFT JOIN firms fm ON f.firm_id = fm.id
       LEFT JOIN users u_rev ON f.reviewed_by = u_rev.id
       ${whereClause}
       ORDER BY f.created_at DESC
@@ -207,15 +224,19 @@ router.get('/eligible', requireSuperadmin, (req, res) => {
   }
 });
 
-// Preview next File ID dynamically based on selected product
+// Preview next File ID dynamically based on selected product (supports optional count)
 router.get('/preview-id', (req, res) => {
   try {
-    const { productId } = req.query;
+    const { productId, count = '1' } = req.query;
     if (!productId) {
       return res.status(400).json({ error: 'productId is required' });
     }
-    const nextId = generateNextFileId(productId as string);
-    res.json({ fileId: nextId });
+    const countNum = Math.max(1, Math.min(50, parseInt(String(count), 10) || 1));
+    const ids = generateNextFileIds(productId as string, countNum);
+    res.json({
+      fileId: ids.length === 1 ? ids[0] : `${ids[0]} – ${ids[ids.length - 1]} (${ids.length} files)`,
+      fileIds: ids
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to generate preview File ID' });
   }
@@ -237,12 +258,14 @@ router.get('/:id', (req, res) => {
         b.bank_name,
         b.bank_gst_no,
         s.name as sales_member_name,
+        COALESCE(fm.firm_name, 'Mavin Credits') as firm_name,
         u_rev.full_name as reviewer_name
       FROM files f
       JOIN clients c ON f.client_id = c.id
       JOIN products p ON f.product_id = p.id
       JOIN banks b ON f.bank_id = b.id
       JOIN sales_members s ON f.sales_member_id = s.id
+      LEFT JOIN firms fm ON f.firm_id = fm.id
       LEFT JOIN users u_rev ON f.reviewed_by = u_rev.id
       WHERE f.id = ?
     `).get(req.params.id) as any;
@@ -333,11 +356,8 @@ router.post('/', (req, res) => {
   }
 
   try {
-    const fileId = generateNextFileId(product_id);
+    const fileIds = generateNextFileIds(product_id, banksList.length);
     const loginDate = new Date().toISOString();
-    const primaryBankId = banksList[0].bank_id;
-    const primaryManager = banksList[0].bank_manager_name;
-    const totalSanction = banksList.reduce((sum, b) => sum + (Number(b.sanction_loan_amount) || 0), 0);
     const finalEmail = client_email?.trim() || `${company_name.trim().toLowerCase().replace(/[^a-z0-9]/g, '') || 'client'}@vinayakassociates.in`;
     const finalGst = gst_no?.trim() ? gst_no.trim().toUpperCase() : 'URP';
 
@@ -367,90 +387,107 @@ router.post('/', (req, res) => {
         clientId = Number(cInfo.lastInsertRowid);
       }
 
-      // 2. Verify selected bank exists
-      const bank = db.prepare('SELECT id FROM banks WHERE id = ?').get(primaryBankId);
-      if (!bank) {
-        throw new Error('Selected Bank does not exist in master data');
-      }
-
-      // 3. Verify product
+      // 2. Verify product
       const product = db.prepare('SELECT id FROM products WHERE id = ?').get(product_id);
       if (!product) {
         throw new Error('Selected Product does not exist');
       }
 
-      // 4. Verify sales member
+      // 3. Verify sales member
       const salesMember = db.prepare('SELECT id FROM sales_members WHERE id = ?').get(sales_member_id);
       if (!salesMember) {
         throw new Error('Selected Sales Member does not exist');
       }
 
-      // 5. Insert canonical File record
-      db.prepare(`
+      // 4. Insert individual file records for each bank selected
+      const insertFile = db.prepare(`
         INSERT INTO files (
           id, login_date, client_id, bank_id, product_id, sales_member_id,
           bank_manager_name, code, source, sanction_loan_amount, status,
           created_by, created_at, firm_id
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        fileId,
-        loginDate,
-        clientId,
-        primaryBankId,
-        product_id,
-        sales_member_id,
-        primaryManager,
-        code.trim(),
-        source ? source.trim() : null,
-        totalSanction,
-        status,
-        req.user?.id || null,
-        loginDate,
-        Number(firm_id) || 1
-      );
+      `);
 
-      // 6. Insert file_banks
       const insertFb = db.prepare(`
         INSERT INTO file_banks (file_id, bank_id, bank_manager_name, sanction_loan_amount, created_at)
         VALUES (?, ?, ?, ?, ?)
       `);
-      for (const b of banksList) {
-        insertFb.run(fileId, b.bank_id, b.bank_manager_name, b.sanction_loan_amount, loginDate);
+
+      for (let i = 0; i < banksList.length; i++) {
+        const b = banksList[i];
+        const curFileId = fileIds[i];
+
+        // Verify selected bank exists
+        const bank = db.prepare('SELECT id FROM banks WHERE id = ?').get(b.bank_id);
+        if (!bank) {
+          throw new Error(`Bank ID ${b.bank_id} does not exist in master data`);
+        }
+
+        const rowSanction = Number(b.sanction_loan_amount) || 0;
+
+        insertFile.run(
+          curFileId,
+          loginDate,
+          clientId,
+          b.bank_id,
+          product_id,
+          sales_member_id,
+          b.bank_manager_name,
+          code.trim(),
+          source ? source.trim() : null,
+          rowSanction,
+          finalStatus,
+          req.user?.id || null,
+          loginDate,
+          Number(firm_id) || 1
+        );
+
+        insertFb.run(curFileId, b.bank_id, b.bank_manager_name, rowSanction, loginDate);
       }
 
-      return fileId;
+      return fileIds;
     });
 
-    const createdFileId = insertTransaction();
+    const createdFileIds = insertTransaction();
 
-    const newRecord = db.prepare(`
-      SELECT 
-        f.*,
-        c.company_name,
-        c.gst_no,
-        c.client_name,
-        c.client_email,
-        p.name as product_name,
-        p.acronym as product_acronym,
-        b.bank_name,
-        b.bank_gst_no,
-        s.name as sales_member_name
-      FROM files f
-      JOIN clients c ON f.client_id = c.id
-      JOIN products p ON f.product_id = p.id
-      JOIN banks b ON f.bank_id = b.id
-      JOIN sales_members s ON f.sales_member_id = s.id
-      WHERE f.id = ?
-    `).get(createdFileId) as any;
+    const createdRecords = createdFileIds.map(fid => {
+      const rec = db.prepare(`
+        SELECT 
+          f.*,
+          c.company_name,
+          c.gst_no,
+          c.client_name,
+          c.client_email,
+          p.name as product_name,
+          p.acronym as product_acronym,
+          b.bank_name,
+          b.bank_gst_no,
+          s.name as sales_member_name,
+          COALESCE(fm.firm_name, 'Mavin Credits') as firm_name
+        FROM files f
+        JOIN clients c ON f.client_id = c.id
+        JOIN products p ON f.product_id = p.id
+        JOIN banks b ON f.bank_id = b.id
+        JOIN sales_members s ON f.sales_member_id = s.id
+        LEFT JOIN firms fm ON f.firm_id = fm.id
+        WHERE f.id = ?
+      `).get(fid) as any;
 
-    newRecord.banks = db.prepare(`
-      SELECT fb.id, fb.bank_id, fb.bank_manager_name, fb.sanction_loan_amount, b.bank_name, b.bank_gst_no
-      FROM file_banks fb
-      JOIN banks b ON fb.bank_id = b.id
-      WHERE fb.file_id = ?
-    `).all(createdFileId);
+      rec.banks = db.prepare(`
+        SELECT fb.id, fb.bank_id, fb.bank_manager_name, fb.sanction_loan_amount, b.bank_name, b.bank_gst_no
+        FROM file_banks fb
+        JOIN banks b ON fb.bank_id = b.id
+        WHERE fb.file_id = ?
+      `).all(fid);
 
-    res.status(201).json({ file: newRecord });
+      return rec;
+    });
+
+    res.status(201).json({
+      file: createdRecords[0],
+      files: createdRecords,
+      count: createdRecords.length
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to create file' });
   }

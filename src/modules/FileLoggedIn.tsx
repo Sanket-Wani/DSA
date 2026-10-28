@@ -31,6 +31,7 @@ export const FileLoggedIn: React.FC = () => {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [firmFilter, setFirmFilter] = useState('All');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -78,7 +79,7 @@ export const FileLoggedIn: React.FC = () => {
   const [newBankGst, setNewBankGst] = useState('');
 
   // 1. Fetch Files list
-  const fetchFiles = async (searchQuery = search, targetPage = page, statusVal = statusFilter) => {
+  const fetchFiles = async (searchQuery = search, targetPage = page, statusVal = statusFilter, firmVal = firmFilter) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -86,7 +87,8 @@ export const FileLoggedIn: React.FC = () => {
         page: String(targetPage),
         limit: '10',
         search: searchQuery.trim(),
-        status: statusVal
+        status: statusVal,
+        firm_id: firmVal
       });
       const data = await apiRequest<{ files: FileRecord[]; pagination: any }>(`/api/files?${query.toString()}`);
       const nonDisbursed = (data.files || []).filter(f => f.status !== 'Disburse');
@@ -128,13 +130,13 @@ export const FileLoggedIn: React.FC = () => {
   useEffect(() => {
     if (viewMode === 'list') {
       const timer = setTimeout(() => {
-        fetchFiles(search, page, statusFilter);
+        fetchFiles(search, page, statusFilter, firmFilter);
       }, 200);
       return () => clearTimeout(timer);
     }
-  }, [page, statusFilter, search, viewMode]);
+  }, [page, statusFilter, firmFilter, search, viewMode]);
 
-  // Dynamically calculate and preview next File ID when Product is selected
+  // Dynamically calculate and preview next File ID when Product or Banks change
   useEffect(() => {
     // When editing an existing file, preserve its exact File ID
     if (editingFileId) {
@@ -145,7 +147,8 @@ export const FileLoggedIn: React.FC = () => {
       setPreviewFileId('');
       return;
     }
-    apiRequest<{ fileId: string }>(`/api/files/preview-id?productId=${productId}`)
+    const count = Math.max(1, banksList.length);
+    apiRequest<{ fileId: string; fileIds?: string[] }>(`/api/files/preview-id?productId=${productId}&count=${count}`)
       .then(res => {
         if (res && res.fileId) {
           setPreviewFileId(res.fileId);
@@ -156,9 +159,9 @@ export const FileLoggedIn: React.FC = () => {
         const prod = products.find(p => String(p.id) === String(productId));
         const acr = (prod?.acronym || 'GEN').toUpperCase().trim();
         const code = acr.length === 2 ? acr + 'X' : acr.slice(0, 3);
-        setPreviewFileId(`${yr}${code}...`);
+        setPreviewFileId(count > 1 ? `${yr}${code}... (${count} files)` : `${yr}${code}...`);
       });
-  }, [productId, products, editingFileId]);
+  }, [productId, products, banksList.length, editingFileId]);
 
   // Toggle inline New File Entry horizontal form row
   const handleToggleInlineCreate = () => {
@@ -253,12 +256,16 @@ export const FileLoggedIn: React.FC = () => {
         });
         setSuccessMsg(`File "${editingFileId}" updated successfully.`);
       } else {
-        // CREATE new record
-        const res = await apiRequest<{ file: FileRecord }>('/api/files', {
+        // CREATE new record(s)
+        const res = await apiRequest<{ file: FileRecord; files?: FileRecord[]; count?: number }>('/api/files', {
           method: 'POST',
           body: JSON.stringify(payload)
         });
-        setSuccessMsg(`File "${res.file.id}" created successfully.`);
+        if (res.files && res.files.length > 1) {
+          setSuccessMsg(`Successfully created ${res.files.length} individual file records: ${res.files.map(f => f.id).join(', ')}`);
+        } else {
+          setSuccessMsg(`File "${res.file.id}" created successfully.`);
+        }
       }
 
       setIsInlineCreating(false);
@@ -1179,12 +1186,34 @@ export const FileLoggedIn: React.FC = () => {
                 setPage(1);
               }}
               className="select-control"
-              style={{ width: '220px' }}
+              style={{ width: '180px' }}
             >
               <option value="All">All Statuses</option>
               {ALL_FILE_STATUSES.filter(st => st !== 'Disburse').map(st => (
                 <option key={st} value={st}>
                   {st}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+              Firm:
+            </span>
+            <select
+              value={firmFilter}
+              onChange={e => {
+                setFirmFilter(e.target.value);
+                setPage(1);
+              }}
+              className="select-control"
+              style={{ width: '180px' }}
+            >
+              <option value="All">All Firms</option>
+              {firms.map(fm => (
+                <option key={fm.id} value={String(fm.id)}>
+                  {fm.firm_name}
                 </option>
               ))}
             </select>
@@ -1521,11 +1550,11 @@ export const FileLoggedIn: React.FC = () => {
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '15%' }}>File ID</th>
-              <th style={{ width: '13%' }}>Login Date</th>
-              <th style={{ width: '33%' }}>Client / Company</th>
+              <th style={{ width: '14%' }}>File ID</th>
+              <th style={{ width: '12%' }}>Login Date</th>
+              <th style={{ width: '31%' }}>Client / Company</th>
               <th style={{ width: '18%' }}>Bank Name</th>
-              <th style={{ width: '11%' }}>Sales Member</th>
+              <th style={{ width: '15%' }}>Firm / Sales Member</th>
               <th style={{ width: '10%', textAlign: 'center' }}>Status</th>
             </tr>
           </thead>
@@ -1604,11 +1633,14 @@ export const FileLoggedIn: React.FC = () => {
                     )}
                   </td>
 
-                  {/* 5. Sales Member */}
+                  {/* 5. Firm / Sales Member */}
                   <td>
-                    <span style={{ color: 'var(--color-text-secondary)' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '13px' }}>
+                      {f.firm_name || 'Mavin Credits'}
+                    </div>
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
                       {f.sales_member_name}
-                    </span>
+                    </div>
                   </td>
 
                   {/* 6. Status (make the colored part a little big) */}
