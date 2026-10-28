@@ -35,10 +35,10 @@ router.get('/lookup/:fileId', (req, res) => {
     }
 
     // Status check for disbursement eligibility
-    const disbursableStatuses = ['Disbursement', 'Sanction', 'Approved'];
+    const disbursableStatuses = ['Disburse', 'Sanction', 'Approved'];
     if (!disbursableStatuses.includes(file.status)) {
       return res.status(400).json({ 
-        error: `File "${fileId}" is in status "${file.status}". Files must be in "Sanction" or "Disbursement" status to receive disbursement entries.`,
+        error: `File "${fileId}" is in status "${file.status}". Files must be in "Sanction" or "Disburse" status to receive disbursement entries.`,
         fileStatus: file.status 
       });
     }
@@ -82,9 +82,9 @@ router.post('/', (req, res) => {
       return res.status(404).json({ error: `File ID "${file_id}" not found.` });
     }
 
-    const disbursableStatuses = ['Disbursement', 'Sanction', 'Approved'];
+    const disbursableStatuses = ['Disburse', 'Sanction', 'Approved'];
     if (!disbursableStatuses.includes(file.status)) {
-      return res.status(400).json({ error: `Cannot save disbursements: File "${file_id}" is in status "${file.status}". Files must be in "Sanction" or "Disbursement" status.` });
+      return res.status(400).json({ error: `Cannot save disbursements: File "${file_id}" is in status "${file.status}". Files must be in "Sanction" or "Disburse" status.` });
     }
 
     // 2. Validate all rows before inserting
@@ -161,7 +161,7 @@ router.get('/', (req, res) => {
     // Individual file records with total disbursements done till now
     const fileSummaryList = db.prepare(`
       SELECT 
-        d.file_id,
+        f.id as file_id,
         COALESCE(f.sanction_loan_amount, 0) as sanction_loan_amount,
         COALESCE(c.company_name, '') as company_name,
         COALESCE(c.client_name, '') as client_name,
@@ -172,13 +172,15 @@ router.get('/', (req, res) => {
         COALESCE(SUM(d.disbursement_amount), 0) as total_disbursed_amount,
         MAX(d.disbursement_date) as latest_disbursement_date,
         MAX(d.created_at) as latest_created_at
-      FROM disbursements d
-      LEFT JOIN files f ON d.file_id = f.id
+      FROM files f
       LEFT JOIN clients c ON f.client_id = c.id
       LEFT JOIN products p ON f.product_id = p.id
       LEFT JOIN banks b ON f.bank_id = b.id
-      GROUP BY d.file_id
-      ORDER BY latest_disbursement_date DESC, latest_created_at DESC
+      LEFT JOIN disbursements d ON f.id = d.file_id
+      WHERE f.status = 'Disburse' OR d.id IS NOT NULL
+      GROUP BY f.id
+      ORDER BY 
+        CASE WHEN MAX(d.disbursement_date) IS NOT NULL THEN MAX(d.disbursement_date) ELSE f.created_at END DESC
     `).all().map((r: any) => ({
       ...r,
       disbursement_count: Number(r.disbursement_count),

@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS files (
     'Legal',
     'Query',
     'Sanction',
+    'Disburse',
     'Disbursement',
     'Rejected from Bank',
     'Cancelled',

@@ -19,7 +19,7 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant = 'neutral', classN
 
 export function getFileStatusVariant(status: string): BadgeVariant {
   switch (status) {
-    case 'Disbursement':
+    case 'Disburse':
     case 'Approved':
       return 'success';
     case 'Sanction':

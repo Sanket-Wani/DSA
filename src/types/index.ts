@@ -66,7 +66,7 @@ export type FileStatus =
   | 'Legal'
   | 'Query'
   | 'Sanction'
-  | 'Disbursement'
+  | 'Disburse'
   | 'Rejected from Bank'
   | 'Cancelled'
   | 'Hold'
@@ -80,7 +80,7 @@ export const ALL_FILE_STATUSES: FileStatus[] = [
   'Legal',
   'Query',
   'Sanction',
-  'Disbursement',
+  'Disburse',
   'Rejected from Bank',
   'Cancelled',
   'Hold',

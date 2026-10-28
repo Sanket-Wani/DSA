@@ -67,7 +67,7 @@ router.get('/lookup/:fileId', (req, res) => {
       return res.status(404).json({ error: `File ID "${fileId}" not found in system records.` });
     }
 
-    const invoiceableStatuses = ['Disbursement', 'Sanction', 'Approved'];
+    const invoiceableStatuses = ['Disburse', 'Sanction', 'Approved'];
     if (!invoiceableStatuses.includes(file.status)) {
       return res.status(400).json({ 
         error: `Invoices can only be created for Sanctioned or Disbursed files. Current status of "${fileId}" is "${file.status}".`,
@@ -154,9 +154,9 @@ router.post('/', (req, res) => {
       return res.status(404).json({ error: `File ID "${file_id}" not found.` });
     }
 
-    const invoiceableStatuses = ['Disbursement', 'Sanction', 'Approved'];
+    const invoiceableStatuses = ['Disburse', 'Sanction', 'Approved'];
     if (!invoiceableStatuses.includes(file.status)) {
-      return res.status(400).json({ error: `Invoice creation blocked: File "${file_id}" is in status "${file.status}". Sanction or Disbursement status required.` });
+      return res.status(400).json({ error: `Invoice creation blocked: File "${file_id}" is in status "${file.status}". Sanction or Disburse status required.` });
     }
 
     // 2. Verify firm exists

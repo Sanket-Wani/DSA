@@ -12,7 +12,7 @@ export const VALID_FILE_STATUSES = [
   'Legal',
   'Query',
   'Sanction',
-  'Disbursement',
+  'Disburse',
   'Rejected from Bank',
   'Cancelled',
   'Hold',
@@ -85,6 +85,9 @@ router.get('/', (req, res) => {
         conditions.push(`f.status IN (${statusArr.map(() => '?').join(', ')})`);
         params.push(...statusArr);
       }
+    } else {
+      // By default in File Logged In, exclude files moved to Disbursement section
+      conditions.push("f.status != 'Disburse'");
     }
 
     if (search && String(search).trim()) {
@@ -649,14 +652,14 @@ router.post('/:id/approve', requireSuperadmin, (req, res) => {
       return res.status(404).json({ error: `File ID "${fileId}" not found.` });
     }
 
-    if (file.status === 'Disbursement' || file.status === 'Approved') {
+    if (file.status === 'Disburse' || file.status === 'Approved') {
       return res.status(400).json({ error: `File "${fileId}" is already approved for disbursement.` });
     }
 
     const reviewedAt = new Date().toISOString();
     db.prepare(`
       UPDATE files 
-      SET status = 'Disbursement', reviewed_by = ?, reviewed_at = ?, review_remarks = ?
+      SET status = 'Disburse', reviewed_by = ?, reviewed_at = ?, review_remarks = ?
       WHERE id = ?
     `).run(
       req.user!.id,

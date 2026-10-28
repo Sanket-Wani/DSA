@@ -112,12 +112,12 @@ async function runTests() {
   const approvalTimestamp = new Date().toISOString();
   db.prepare(`
     UPDATE files 
-    SET status = 'Disbursement', reviewed_by = 1, reviewed_at = ?, review_remarks = 'All KYC and bank sanction verified'
+    SET status = 'Disburse', reviewed_by = 1, reviewed_at = ?, review_remarks = 'All KYC and bank sanction verified'
     WHERE id = ?
   `).run(approvalTimestamp, fileId1);
 
   const approvedFile = db.prepare('SELECT * FROM files WHERE id = ?').get(fileId1) as any;
-  assert(approvedFile.status === 'Disbursement', 'File status authoritatively updated to Disbursement in DB');
+  assert(approvedFile.status === 'Disburse', 'File status authoritatively updated to Disburse in DB');
   assert(approvedFile.reviewed_by === 1 && approvedFile.reviewed_at !== null, 'Decision recorded reviewer ID and timestamp');
   assert(approvedFile.reviewed_by === 1 && approvedFile.reviewed_at !== null, 'Decision recorded reviewer ID and timestamp');
 

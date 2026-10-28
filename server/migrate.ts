@@ -219,6 +219,63 @@ export function runMigration() {
       if (!fileCols.some(c => c.name === 'firm_id')) {
         db.exec("ALTER TABLE files ADD COLUMN firm_id INTEGER REFERENCES firms(id) DEFAULT 1");
       }
+
+      // 9. Migrate status 'Disbursement' to 'Disburse'
+      const filesTableSql = (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='files'").get() as any)?.sql || '';
+      if (!filesTableSql.includes("'Disburse'")) {
+        db.exec(`
+          CREATE TABLE files_disburse_mig (
+            id TEXT PRIMARY KEY,
+            login_date TEXT NOT NULL,
+            client_id INTEGER NOT NULL REFERENCES clients(id),
+            bank_id INTEGER NOT NULL REFERENCES banks(id),
+            product_id INTEGER NOT NULL REFERENCES products(id),
+            sales_member_id INTEGER NOT NULL REFERENCES sales_members(id),
+            bank_manager_name TEXT NOT NULL,
+            code TEXT NOT NULL,
+            source TEXT,
+            sanction_loan_amount REAL NOT NULL,
+            status TEXT NOT NULL CHECK(status IN (
+              'WIP (Work in Progress)',
+              'Document Pending',
+              'IP Pending',
+              'Valuation',
+              'Legal',
+              'Query',
+              'Sanction',
+              'Disburse',
+              'Disbursement',
+              'Rejected from Bank',
+              'Cancelled',
+              'Hold',
+              'Qualification Issue (Rejected by Firm)'
+            )) DEFAULT 'WIP (Work in Progress)',
+            created_by INTEGER REFERENCES users(id),
+            created_at TEXT NOT NULL,
+            reviewed_by INTEGER REFERENCES users(id),
+            reviewed_at TEXT,
+            review_remarks TEXT,
+            firm_id INTEGER REFERENCES firms(id) DEFAULT 1
+          );
+
+          INSERT INTO files_disburse_mig
+          SELECT 
+            id, login_date, client_id, bank_id, product_id, sales_member_id,
+            bank_manager_name, code, source, sanction_loan_amount,
+            CASE WHEN status = 'Disbursement' THEN 'Disburse' ELSE status END,
+            created_by, created_at, reviewed_by, reviewed_at, review_remarks,
+            COALESCE(firm_id, 1)
+          FROM files;
+
+          DROP TABLE files;
+          ALTER TABLE files_disburse_mig RENAME TO files;
+
+          CREATE INDEX IF NOT EXISTS idx_files_status ON files(status);
+          CREATE INDEX IF NOT EXISTS idx_files_client ON files(client_id);
+        `);
+      } else {
+        db.prepare("UPDATE files SET status = 'Disburse' WHERE status = 'Disbursement'").run();
+      }
     })();
   } finally {
     db.pragma('foreign_keys = ON');

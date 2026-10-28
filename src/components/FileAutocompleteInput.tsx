@@ -43,7 +43,7 @@ export const FileAutocompleteInput: React.FC<FileAutocompleteInputProps> = ({
     const fetchApproved = async () => {
       setIsLoading(true);
       try {
-        const data = await apiRequest<{ files: FileRecord[] }>('/api/files?status=Disbursement,Sanction,Approved&limit=100');
+        const data = await apiRequest<{ files: FileRecord[] }>('/api/files?status=Disburse,Sanction,Approved&limit=100');
         if (isMounted) {
           setApprovedFiles(data.files || []);
         }

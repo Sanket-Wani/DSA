@@ -4,7 +4,6 @@ import { FileRecord, DisbursementRecord } from '../types/index.js';
 import { apiRequest } from '../api/client.js';
 import { Button } from '../components/Button.js';
 import { Input } from '../components/Input.js';
-import { FileAutocompleteInput } from '../components/FileAutocompleteInput.js';
 
 interface EditableRow {
   id: string;
@@ -28,6 +27,9 @@ export interface FileDisbursementRecord {
 }
 
 export const Disbursements: React.FC = () => {
+  // Search state
+  const [search, setSearch] = useState('');
+
   // Lookup state
   const [lookupFileId, setLookupFileId] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -154,6 +156,19 @@ export const Disbursements: React.FC = () => {
   const isFullyDisbursed = fileData !== null && totalDisbursed >= sanctionLoanAmount;
   const validRows = rows.filter(r => r.amount.trim() !== '' && !isNaN(Number(r.amount)) && Number(r.amount) > 0);
 
+  const filteredDisbursements = fileDisbursements.filter(f => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase().trim();
+    return (
+      (f.file_id && f.file_id.toLowerCase().includes(q)) ||
+      (f.company_name && f.company_name.toLowerCase().includes(q)) ||
+      (f.client_name && f.client_name.toLowerCase().includes(q)) ||
+      (f.product_name && f.product_name.toLowerCase().includes(q)) ||
+      (f.product_acronym && f.product_acronym.toLowerCase().includes(q)) ||
+      (f.bank_name && f.bank_name.toLowerCase().includes(q))
+    );
+  });
+
   const handleSaveDisbursements = async () => {
     if (!fileData) return;
 
@@ -250,54 +265,46 @@ export const Disbursements: React.FC = () => {
         </div>
       )}
 
-      {/* File ID Lookup Box */}
+      {/* Search & Actions Toolbar */}
       <div
         style={{
-          border: '1px solid #e2e8f0',
-          borderRadius: '12px',
-          padding: '18px 22px',
-          backgroundColor: '#ffffff',
-          marginBottom: '28px'
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '20px',
+          gap: '12px',
+          flexWrap: 'wrap'
         }}
       >
-        <form onSubmit={handleLookup} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1', minWidth: '280px' }}>
-            <FileAutocompleteInput
-              label="Enter File Logged-in ID"
-              required
-              placeholder="Click for approved accounts dropdown, or type File ID"
-              value={lookupFileId}
-              onChange={setLookupFileId}
-              onSelectFile={handleSelectApprovedFile}
-              error={lookupError || undefined}
-              helperText="Clicking the field opens all Superadmin-approved accounts. You can also type the ID."
-            />
-          </div>
-          <div style={{ paddingTop: '24px' }}>
+        <div className="search-input-wrapper" style={{ width: '340px' }}>
+          <Search size={16} className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search file ID, client, product, bank..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="search-input"
+          />
+          {search && (
             <button
-              type="submit"
-              disabled={isSearching}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                backgroundColor: '#0f172a',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '9px 18px',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'background-color 150ms ease'
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#000000')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0f172a')}
+              type="button"
+              onClick={() => setSearch('')}
+              className="search-clear"
+              title="Clear search"
             >
-              <Search size={15} /> Retrieve File Details
+              ×
             </button>
-          </div>
-        </form>
+          )}
+        </div>
+
+        <Button
+          variant="secondary"
+          size="md"
+          onClick={loadAllPreviousDisbursements}
+          isLoading={isLoadingPrevious}
+        >
+          Refresh
+        </Button>
       </div>
 
       {/* 'Disbursed Amounts' List under the input field */}
@@ -309,7 +316,7 @@ export const Disbursements: React.FC = () => {
               </div>
               {!fileData && (
                 <span className="badge badge-neutral" style={{ fontSize: '11px' }}>
-                  {fileDisbursements.length} disbursed account{fileDisbursements.length === 1 ? '' : 's'}
+                  {filteredDisbursements.length} disbursed account{filteredDisbursements.length === 1 ? '' : 's'}
                 </span>
               )}
             </div>
@@ -346,7 +353,7 @@ export const Disbursements: React.FC = () => {
                     }}
                     onClick={() => setActiveTab('all')}
                   >
-                    All Disbursed Accounts ({fileDisbursements.length})
+                    All Disbursed Accounts ({filteredDisbursements.length})
                   </button>
                 </div>
 
@@ -418,7 +425,7 @@ export const Disbursements: React.FC = () => {
             )
           ) : (
             /* Render All Disbursed Files with Disbursement Count */
-            fileDisbursements.length === 0 ? (
+            filteredDisbursements.length === 0 ? (
               <div
                 style={{
                   padding: '24px',
@@ -430,7 +437,11 @@ export const Disbursements: React.FC = () => {
                   fontSize: '13px'
                 }}
               >
-                {isLoadingPrevious ? 'Loading disbursement records...' : 'No disbursed accounts recorded yet in the system.'}
+                {isLoadingPrevious
+                  ? 'Loading disbursement records...'
+                  : search
+                  ? 'No disbursement records match your search query.'
+                  : 'No disbursed accounts recorded yet in the system.'}
               </div>
             ) : (
               <div className="table-container">
@@ -449,7 +460,7 @@ export const Disbursements: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {fileDisbursements.map((f) => {
+                    {filteredDisbursements.map((f) => {
                       const isCurrentFile = fileData?.id === f.file_id;
                       return (
                         <tr
@@ -593,7 +604,7 @@ export const Disbursements: React.FC = () => {
                 <div className="panel-description">Autofetched canonical details from database</div>
               </div>
               <span className="badge badge-success">
-                <span className="badge-dot" /> Approved File
+                <span className="badge-dot" /> {fileData.status || 'Disburse'}
               </span>
             </div>
 

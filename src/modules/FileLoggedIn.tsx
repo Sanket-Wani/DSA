@@ -89,7 +89,8 @@ export const FileLoggedIn: React.FC = () => {
         status: statusVal
       });
       const data = await apiRequest<{ files: FileRecord[]; pagination: any }>(`/api/files?${query.toString()}`);
-      setFiles(data.files || []);
+      const nonDisbursed = (data.files || []).filter(f => f.status !== 'Disburse');
+      setFiles(nonDisbursed);
       setTotalPages(data.pagination.totalPages || 1);
       setTotalItems(data.pagination.total || 0);
     } catch (err: any) {
@@ -1181,7 +1182,7 @@ export const FileLoggedIn: React.FC = () => {
               style={{ width: '220px' }}
             >
               <option value="All">All Statuses</option>
-              {ALL_FILE_STATUSES.map(st => (
+              {ALL_FILE_STATUSES.filter(st => st !== 'Disburse').map(st => (
                 <option key={st} value={st}>
                   {st}
                 </option>
@@ -1520,20 +1521,18 @@ export const FileLoggedIn: React.FC = () => {
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '11%' }}>File ID</th>
-              <th style={{ width: '10%' }}>Login Date</th>
-              <th style={{ width: '23%' }}>Client / Company</th>
-              <th style={{ width: '9%' }}>Product</th>
-              <th style={{ width: '14%' }}>Bank Name</th>
+              <th style={{ width: '15%' }}>File ID</th>
+              <th style={{ width: '13%' }}>Login Date</th>
+              <th style={{ width: '33%' }}>Client / Company</th>
+              <th style={{ width: '18%' }}>Bank Name</th>
               <th style={{ width: '11%' }}>Sales Member</th>
               <th style={{ width: '10%', textAlign: 'center' }}>Status</th>
-              <th style={{ width: '12%', textAlign: 'right' }}>Sanction Amount</th>
             </tr>
           </thead>
           <tbody>
             {files.length === 0 ? (
               <tr>
-                <td colSpan={8} className="table-empty">
+                <td colSpan={6} className="table-empty">
                   <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>No file records found</div>
                   <div style={{ fontSize: 'var(--font-size-sm)', marginTop: '4px' }}>
                     {search || statusFilter !== 'All'
@@ -1595,25 +1594,7 @@ export const FileLoggedIn: React.FC = () => {
                     </div>
                   </td>
 
-                  {/* 4. Product (mention only the acronym) */}
-                  <td>
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        fontSize: 'var(--font-size-xs)',
-                        backgroundColor: 'var(--color-surface-muted)',
-                        padding: '3px 8px',
-                        borderRadius: 'var(--radius-xs)',
-                        fontWeight: 700,
-                        letterSpacing: '0.04em',
-                        border: '1px solid var(--color-border)'
-                      }}
-                    >
-                      {f.product_acronym || f.product_name}
-                    </span>
-                  </td>
-
-                  {/* 5. Bank Name */}
+                  {/* 4. Bank Name */}
                   <td>
                     <div style={{ fontWeight: 500 }}>{f.bank_name}</div>
                     {f.bank_manager_name && (
@@ -1623,14 +1604,14 @@ export const FileLoggedIn: React.FC = () => {
                     )}
                   </td>
 
-                  {/* 6. Sales Member */}
+                  {/* 5. Sales Member */}
                   <td>
                     <span style={{ color: 'var(--color-text-secondary)' }}>
                       {f.sales_member_name}
                     </span>
                   </td>
 
-                  {/* 7. Status (make the colored part a little big) */}
+                  {/* 6. Status (make the colored part a little big) */}
                   <td style={{ textAlign: 'center' }}>
                     <span
                       className={`badge badge-${getFileStatusVariant(f.status)}`}
@@ -1648,11 +1629,6 @@ export const FileLoggedIn: React.FC = () => {
                     >
                       {f.status}
                     </span>
-                  </td>
-
-                  {/* 8. Sanction Amount */}
-                  <td className="table-cell-num" style={{ textAlign: 'right', fontWeight: 600 }}>
-                    ₹{f.sanction_loan_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
               );
