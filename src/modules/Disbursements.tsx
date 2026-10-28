@@ -16,9 +16,11 @@ export interface FileDisbursementRecord {
   sanction_loan_amount: number;
   company_name: string;
   client_name: string;
-  product_name: string;
-  product_acronym: string;
+  gst_no?: string;
   bank_name: string;
+  bank_manager_name?: string;
+  product_name?: string;
+  product_acronym?: string;
   disbursement_count: number;
   total_disbursed_amount: number;
   remaining_amount: number;
@@ -163,9 +165,11 @@ export const Disbursements: React.FC = () => {
       (f.file_id && f.file_id.toLowerCase().includes(q)) ||
       (f.company_name && f.company_name.toLowerCase().includes(q)) ||
       (f.client_name && f.client_name.toLowerCase().includes(q)) ||
+      (f.gst_no && f.gst_no.toLowerCase().includes(q)) ||
+      (f.bank_name && f.bank_name.toLowerCase().includes(q)) ||
+      (f.bank_manager_name && f.bank_manager_name.toLowerCase().includes(q)) ||
       (f.product_name && f.product_name.toLowerCase().includes(q)) ||
-      (f.product_acronym && f.product_acronym.toLowerCase().includes(q)) ||
-      (f.bank_name && f.bank_name.toLowerCase().includes(q))
+      (f.product_acronym && f.product_acronym.toLowerCase().includes(q))
     );
   });
 
@@ -448,15 +452,12 @@ export const Disbursements: React.FC = () => {
                 <table className="data-table">
                   <thead>
                     <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>File ID</th>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Client / Company</th>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Bank & Product</th>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right' }}>Sanction Amount (₹)</th>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'center' }}>Disbursements Done</th>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right' }}>Total Disbursed (₹)</th>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right' }}>Remaining (₹)</th>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Latest Disbursement</th>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'center' }}>Action</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', width: '14%' }}>File ID</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', width: '28%' }}>Client / Company & GSTIN</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', width: '20%' }}>Bank & Bank Manager</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right', width: '13%' }}>Sanction Amount (₹)</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right', width: '13%' }}>Total Disbursed (₹)</th>
+                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right', width: '12%' }}>Remaining Amount (₹)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -470,8 +471,14 @@ export const Disbursements: React.FC = () => {
                             setLookupFileId(f.file_id);
                             fetchDisbursementsForFile(f.file_id);
                           }}
-                          title={`Click anywhere on this record to select file ${f.file_id}`}
+                          style={{
+                            cursor: 'pointer',
+                            backgroundColor: isCurrentFile ? '#eff6ff' : undefined,
+                            transition: 'background-color 0.15s ease'
+                          }}
+                          title={`Click to select file ${f.file_id} and view disbursement details`}
                         >
+                          {/* 1. File ID */}
                           <td>
                             <button
                               type="button"
@@ -484,10 +491,10 @@ export const Disbursements: React.FC = () => {
                                 fontFamily: 'monospace',
                                 fontWeight: 600,
                                 fontSize: '12px',
-                                color: '#1e293b',
-                                backgroundColor: '#f1f5f9',
-                                border: '1px solid #e2e8f0',
-                                padding: '3px 8px',
+                                color: isCurrentFile ? '#1d4ed8' : '#1e293b',
+                                backgroundColor: isCurrentFile ? '#eff6ff' : '#f1f5f9',
+                                border: `1px solid ${isCurrentFile ? '#bfdbfe' : '#e2e8f0'}`,
+                                padding: '4px 10px',
                                 borderRadius: '6px',
                                 cursor: 'pointer'
                               }}
@@ -496,47 +503,53 @@ export const Disbursements: React.FC = () => {
                               {f.file_id}
                             </button>
                           </td>
+
+                          {/* 2. Client Company Name and Client Name and GSTIN */}
                           <td>
                             <div style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>
                               {f.company_name || '—'}
                             </div>
-                            <div style={{ fontSize: '12px', color: '#64748b' }}>
+                            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                               {f.client_name || ''}
                             </div>
-                          </td>
-                          <td>
-                            <div style={{ fontSize: '13px', fontWeight: 500, color: '#111827' }}>
-                              {f.bank_name || '—'}
-                            </div>
-                            {f.product_acronym && (
-                              <span style={{ fontSize: '11px', fontWeight: 600, color: '#475569', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', padding: '1px 6px', borderRadius: '4px', display: 'inline-block', marginTop: '2px' }}>
-                                {f.product_acronym}
-                              </span>
+                            {f.gst_no && f.gst_no !== 'URP' ? (
+                              <div style={{ fontSize: '11px', fontFamily: 'monospace', color: '#475569', marginTop: '2px' }}>
+                                GSTIN: <span style={{ fontWeight: 600, color: '#1e293b' }}>{f.gst_no}</span>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                                GSTIN: Unregistered (URP)
+                              </div>
                             )}
                           </td>
-                          <td className="table-cell-num">
+
+                          {/* 3. Bank and Bank Manager */}
+                          <td>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>
+                              {f.bank_name || '—'}
+                            </div>
+                            {f.bank_manager_name ? (
+                              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                                Mgr: <span style={{ color: '#334155' }}>{f.bank_manager_name}</span>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                                Mgr: —
+                              </div>
+                            )}
+                          </td>
+
+                          {/* 4. Sanction Amount */}
+                          <td className="table-cell-num" style={{ fontWeight: 600 }}>
                             ₹{Number(f.sanction_loan_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                padding: '3px 12px',
-                                borderRadius: '9999px',
-                                backgroundColor: '#eff6ff',
-                                color: '#1d4ed8',
-                                fontWeight: 600,
-                                fontSize: '12px',
-                                letterSpacing: '0.02em',
-                                border: '1px solid #dbeafe'
-                              }}
-                            >
-                              {f.disbursement_count} {f.disbursement_count === 1 ? 'disbursement' : 'disbursements'}
-                            </span>
-                          </td>
+
+                          {/* 5. Total Disbursed */}
                           <td className="table-cell-num" style={{ fontWeight: 700, color: '#111827' }}>
                             ₹{Number(f.total_disbursed_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
+
+                          {/* 6. Remaining Amount */}
                           <td
                             className="table-cell-num"
                             style={{
@@ -545,43 +558,6 @@ export const Disbursements: React.FC = () => {
                             }}
                           >
                             ₹{Number(f.remaining_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="num-tabular" style={{ fontSize: '12px', color: '#475569' }}>
-                            {f.latest_disbursement_date || '—'}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setLookupFileId(f.file_id);
-                                fetchDisbursementsForFile(f.file_id);
-                              }}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                fontSize: '12px',
-                                fontWeight: 500,
-                                color: '#111827',
-                                backgroundColor: isCurrentFile ? '#f1f5f9' : '#ffffff',
-                                border: '1px solid #e2e8f0',
-                                borderRadius: '6px',
-                                padding: '4px 10px',
-                                cursor: 'pointer',
-                                transition: 'all 120ms ease'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#f8fafc';
-                                e.currentTarget.style.borderColor = '#cbd5e1';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = isCurrentFile ? '#f1f5f9' : '#ffffff';
-                                e.currentTarget.style.borderColor = '#e2e8f0';
-                              }}
-                            >
-                              <ArrowRight size={13} /> {isCurrentFile ? 'Selected' : 'Select File'}
-                            </button>
                           </td>
                         </tr>
                       );

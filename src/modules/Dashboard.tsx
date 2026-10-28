@@ -56,6 +56,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
   // Live Metrics for the 3 Cards
   const [metrics, setMetrics] = useState({
     totalFiles: 0,
+    activeFiles: 0,
     disbursedFilesCount: 0,
     totalDisbursedAmount: 0,
     accountsCount: 0
@@ -64,12 +65,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
   const fetchMetrics = async () => {
     try {
       const [filesRes, disbRes, accRes] = await Promise.allSettled([
-        apiRequest<{ pagination: { total: number } }>('/api/files?limit=1'),
+        apiRequest<{ pagination: { total: number; totalAllFiles?: number; activeFilesCount?: number } }>('/api/files?limit=1&all=true'),
         apiRequest<{ fileDisbursements: Array<{ total_disbursed_amount: number }> }>('/api/disbursements'),
         apiRequest<{ accounts: any[] }>('/api/accounts')
       ]);
 
-      const totalFiles = filesRes.status === 'fulfilled' ? filesRes.value?.pagination?.total || 0 : 0;
+      const totalFiles = filesRes.status === 'fulfilled' 
+        ? (filesRes.value?.pagination?.totalAllFiles ?? filesRes.value?.pagination?.total ?? 0)
+        : 0;
+      const activeFiles = filesRes.status === 'fulfilled'
+        ? (filesRes.value?.pagination?.activeFilesCount ?? 0)
+        : 0;
       
       let disbursedFilesCount = 0;
       let totalDisbursedAmount = 0;
@@ -87,6 +93,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
 
       setMetrics({
         totalFiles,
+        activeFiles,
         disbursedFilesCount,
         totalDisbursedAmount,
         accountsCount
@@ -98,7 +105,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
 
   useEffect(() => {
     fetchMetrics();
-  }, []);
+  }, [selectedCard]);
 
   return (
     <div className="page-content">

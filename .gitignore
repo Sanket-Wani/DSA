@@ -12,6 +12,7 @@ build/
 *.db-journal
 *.db-wal
 *.db-shm
+*.sqlite
 data/*.db
 
 # Personal / Sensitive Documents

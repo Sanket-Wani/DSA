@@ -76,15 +76,16 @@ export function generateNextFileId(productId?: number | string): string {
 // 1. List files with search, filtering, and pagination
 router.get('/', (req, res) => {
   try {
-    const { status, firm_id, search, page = '1', limit = '10' } = req.query;
+    const { status, firm_id, search, page = '1', limit = '10', all, include_disbursed } = req.query;
     const pageNum = Math.max(1, parseInt(String(page), 10) || 1);
     const limitNum = Math.max(1, Math.min(100, parseInt(String(limit), 10) || 10));
     const offset = (pageNum - 1) * limitNum;
+    const shouldIncludeAll = all === 'true' || include_disbursed === 'true' || status === 'ALL_FILES';
 
     const conditions: string[] = [];
     const params: any[] = [];
 
-    if (status && status !== 'All') {
+    if (status && status !== 'All' && status !== 'ALL_FILES') {
       const statusArr = String(status).split(',').map(s => s.trim()).filter(Boolean);
       if (statusArr.length === 1) {
         conditions.push('f.status = ?');
@@ -93,7 +94,7 @@ router.get('/', (req, res) => {
         conditions.push(`f.status IN (${statusArr.map(() => '?').join(', ')})`);
         params.push(...statusArr);
       }
-    } else {
+    } else if (!shouldIncludeAll) {
       // By default in File Logged In, exclude files moved to Disbursement section
       conditions.push("f.status != 'Disburse'");
     }
@@ -166,6 +167,8 @@ router.get('/', (req, res) => {
     `;
 
     const files = db.prepare(dataQuery).all(...params, limitNum, offset);
+    const totalAllFiles = (db.prepare('SELECT COUNT(*) as total FROM files').get() as { total: number }).total;
+    const activeFilesCount = (db.prepare("SELECT COUNT(*) as total FROM files WHERE status != 'Disburse'").get() as { total: number }).total;
 
     res.json({
       files,
@@ -173,7 +176,9 @@ router.get('/', (req, res) => {
         page: pageNum,
         limit: limitNum,
         total: totalCount,
-        totalPages: Math.ceil(totalCount / limitNum)
+        totalPages: Math.ceil(totalCount / limitNum),
+        totalAllFiles,
+        activeFilesCount
       }
     });
   } catch (err: any) {
@@ -349,6 +354,12 @@ router.post('/', (req, res) => {
   const finalStatus = status || 'WIP (Work in Progress)';
   if (!VALID_FILE_STATUSES.includes(finalStatus) && finalStatus !== 'In Progress' && finalStatus !== 'Eligible') {
     errors.push(`Invalid file status "${finalStatus}"`);
+  }
+  if (finalStatus === 'Disburse') {
+    const totalSanction = banksList.reduce((sum, b) => sum + (Number(b.sanction_loan_amount) || 0), 0);
+    if (totalSanction <= 0) {
+      errors.push('Sanction loan amount must be greater than 0 to set status to Disburse');
+    }
   }
 
   if (errors.length > 0) {
@@ -561,6 +572,12 @@ router.put('/:id', (req, res) => {
     const updatedStatus = status || existingFile.status;
     if (!VALID_FILE_STATUSES.includes(updatedStatus) && updatedStatus !== 'In Progress' && updatedStatus !== 'Eligible') {
       errors.push(`Invalid file status "${updatedStatus}"`);
+    }
+    if (updatedStatus === 'Disburse' && totalSanction <= 0) {
+      errors.push('Sanction loan amount must be greater than 0 to set status to Disburse');
+    }
+    if (errors.length > 0) {
+      return res.status(400).json({ errors, error: errors.join(', ') });
     }
     const now = new Date().toISOString();
 

@@ -369,6 +369,39 @@ async function runTests() {
   assert(new Set(ids).size === 3, 'All 3 file IDs are completely distinct and non-duplicate');
   assert(ids[0] < ids[1] && ids[1] < ids[2], 'File IDs strictly follow sequential numbering');
 
+  // Test 16: Number to Words Indian Currency Formatter
+  console.log('\n--- 16. Indian Currency Words Formatter ---');
+  const { numberToWordsIndian } = await import('../src/utils/numberToWords.js');
+  assert(numberToWordsIndian(5000000) === 'Rupees Fifty Lakh Only', '5,000,000 converts to "Rupees Fifty Lakh Only"');
+  assert(numberToWordsIndian(7500000) === 'Rupees Seventy Five Lakh Only', '7,500,000 converts to "Rupees Seventy Five Lakh Only"');
+  assert(numberToWordsIndian(10000000) === 'Rupees One Crore Only', '10,000,000 converts to "Rupees One Crore Only"');
+
+  // Test 17: Disbursements Summary API Fields
+  console.log('\n--- 17. Disbursements Summary Data Table Fields ---');
+  const disbSummary = db.prepare(`
+    SELECT 
+      f.id as file_id,
+      COALESCE(c.company_name, '') as company_name,
+      COALESCE(c.client_name, '') as client_name,
+      COALESCE(c.gst_no, '') as gst_no,
+      COALESCE(b.bank_name, '') as bank_name,
+      COALESCE(f.bank_manager_name, '') as bank_manager_name,
+      COALESCE(f.sanction_loan_amount, 0) as sanction_loan_amount
+    FROM files f
+    LEFT JOIN clients c ON f.client_id = c.id
+    LEFT JOIN banks b ON f.bank_id = b.id
+    WHERE f.id = ?
+  `).get(fileId1) as any;
+  assert(disbSummary && disbSummary.file_id === fileId1, 'Disbursements summary queries file record');
+  assert('gst_no' in disbSummary, 'Disbursements summary includes client GSTIN');
+  assert('bank_manager_name' in disbSummary, 'Disbursements summary includes bank manager name');
+
+  // Cleanup test artifacts
+  db.prepare('DELETE FROM disbursements WHERE file_id = ?').run(fileId1);
+  db.prepare('DELETE FROM accounts_ledger WHERE invoice_id = ?').run(invId);
+  db.prepare('DELETE FROM invoices WHERE id = ?').run(invId);
+  db.prepare('DELETE FROM files WHERE id = ?').run(fileId1);
+
   // Summary
   console.log(`\n======================================================`);
   console.log(`Test Execution Finished: ${passed} Passed, ${failed} Failed.`);

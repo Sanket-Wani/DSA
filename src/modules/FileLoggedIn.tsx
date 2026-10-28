@@ -15,6 +15,8 @@ interface BankFormRow {
   sanction_loan_amount: string;
 }
 
+import { numberToWordsIndian } from '../utils/numberToWords.js';
+
 export const FileLoggedIn: React.FC = () => {
   const { isSuperadmin } = useAuth();
 
@@ -77,6 +79,45 @@ export const FileLoggedIn: React.FC = () => {
   const [newSalesName, setNewSalesName] = useState('');
   const [newBankName, setNewBankName] = useState('');
   const [newBankGst, setNewBankGst] = useState('');
+
+  // Disburse Status & Sanction Amount Popup State
+  const [isDisburseModalOpen, setIsDisburseModalOpen] = useState(false);
+  const [disburseSanctionAmount, setDisburseSanctionAmount] = useState('');
+  const [disburseError, setDisburseError] = useState<string | null>(null);
+  const [prevStatusBeforeDisburse, setPrevStatusBeforeDisburse] = useState<FileStatus>('WIP (Work in Progress)');
+
+  const handleStatusChange = (newStatus: FileStatus) => {
+    if (newStatus === 'Disburse') {
+      setPrevStatusBeforeDisburse(fileStatus);
+      const existingAmt = banksList[0]?.sanction_loan_amount && Number(banksList[0].sanction_loan_amount) > 0
+        ? String(banksList[0].sanction_loan_amount)
+        : '';
+      setDisburseSanctionAmount(existingAmt);
+      setDisburseError(null);
+      setIsDisburseModalOpen(true);
+      return;
+    }
+    setFileStatus(newStatus);
+  };
+
+  const handleCancelDisburseModal = () => {
+    setIsDisburseModalOpen(false);
+    setDisburseError(null);
+    setFileStatus(prevStatusBeforeDisburse || 'WIP (Work in Progress)');
+  };
+
+  const handleConfirmDisburseModal = () => {
+    const cleanStr = disburseSanctionAmount.replace(/,/g, '').trim();
+    const amt = Number(cleanStr);
+    if (isNaN(amt) || amt <= 0) {
+      setDisburseError('Please enter a valid sanction loan amount greater than ₹0.');
+      return;
+    }
+    setBanksList(prev => prev.map((b, idx) => idx === 0 ? { ...b, sanction_loan_amount: String(amt) } : b));
+    setFileStatus('Disburse');
+    setIsDisburseModalOpen(false);
+    setDisburseError(null);
+  };
 
   // 1. Fetch Files list
   const fetchFiles = async (searchQuery = search, targetPage = page, statusVal = statusFilter, firmVal = firmFilter) => {
@@ -230,6 +271,15 @@ export const FileLoggedIn: React.FC = () => {
       return;
     }
 
+    if (fileStatus === 'Disburse') {
+      const totalSanction = banksList.reduce((sum, b) => sum + (Number(b.sanction_loan_amount) || 0), 0);
+      if (totalSanction <= 0) {
+        setInlineError('Sanction loan amount is required to save a record with Disburse status.');
+        setIsDisburseModalOpen(true);
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
       const payload = {
@@ -257,14 +307,22 @@ export const FileLoggedIn: React.FC = () => {
           method: 'PUT',
           body: JSON.stringify(payload)
         });
-        setSuccessMsg(`File "${editingFileId}" updated successfully.`);
+        if (fileStatus === 'Disburse') {
+          const totalSanction = banksList.reduce((sum, b) => sum + (Number(b.sanction_loan_amount) || 0), 0);
+          setSuccessMsg(`File "${editingFileId}" marked as Disburse with sanction amount ₹${totalSanction.toLocaleString('en-IN')} and moved to Disbursement section.`);
+        } else {
+          setSuccessMsg(`File "${editingFileId}" updated successfully.`);
+        }
       } else {
         // CREATE new record(s)
         const res = await apiRequest<{ file: FileRecord; files?: FileRecord[]; count?: number }>('/api/files', {
           method: 'POST',
           body: JSON.stringify(payload)
         });
-        if (res.files && res.files.length > 1) {
+        if (fileStatus === 'Disburse') {
+          const totalSanction = banksList.reduce((sum, b) => sum + (Number(b.sanction_loan_amount) || 0), 0);
+          setSuccessMsg(`File "${res.files ? res.files.map(f => f.id).join(', ') : res.file.id}" marked as Disburse with sanction amount ₹${totalSanction.toLocaleString('en-IN')} and moved to Disbursement section.`);
+        } else if (res.files && res.files.length > 1) {
           setSuccessMsg(`Successfully created ${res.files.length} individual file records: ${res.files.map(f => f.id).join(', ')}`);
         } else {
           setSuccessMsg(`File "${res.file.id}" created successfully.`);
@@ -1509,7 +1567,7 @@ export const FileLoggedIn: React.FC = () => {
               <div>
                 <select
                   value={fileStatus}
-                  onChange={e => setFileStatus(e.target.value as FileStatus)}
+                  onChange={e => handleStatusChange(e.target.value as FileStatus)}
                   className="inline-field-select"
                   title="File status"
                 >
@@ -1520,6 +1578,62 @@ export const FileLoggedIn: React.FC = () => {
                     </option>
                   ))}
                 </select>
+                {fileStatus === 'Disburse' && (
+                  banksList[0]?.sanction_loan_amount && Number(banksList[0].sanction_loan_amount) > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDisburseSanctionAmount(String(banksList[0].sanction_loan_amount));
+                        setDisburseError(null);
+                        setIsDisburseModalOpen(true);
+                      }}
+                      style={{
+                        marginTop: '4px',
+                        fontSize: '11px',
+                        padding: '3px 6px',
+                        backgroundColor: '#ecfdf5',
+                        color: '#065f46',
+                        border: '1px solid #a7f3d0',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        width: '100%',
+                        justifyContent: 'center',
+                        fontWeight: 600
+                      }}
+                      title="Sanction amount recorded. Click to edit."
+                    >
+                      <span>₹{Number(banksList[0].sanction_loan_amount).toLocaleString('en-IN')}</span>
+                      <span style={{ fontSize: '10px', color: '#047857' }}>✎</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDisburseSanctionAmount('');
+                        setDisburseError(null);
+                        setIsDisburseModalOpen(true);
+                      }}
+                      style={{
+                        marginTop: '4px',
+                        fontSize: '10px',
+                        padding: '3px 4px',
+                        backgroundColor: '#fef3c7',
+                        color: '#92400e',
+                        border: '1px solid #fde68a',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        width: '100%',
+                        fontWeight: 600
+                      }}
+                      title="Click to enter sanction amount"
+                    >
+                      ⚠️ Enter Sanction Amt
+                    </button>
+                  )
+                )}
               </div>
 
               <div className="col-6-actions-bottom">
@@ -1537,8 +1651,16 @@ export const FileLoggedIn: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleSaveInlineEntry}
-                  disabled={isLoading}
+                  disabled={
+                    isLoading ||
+                    (fileStatus === 'Disburse' && (!banksList[0]?.sanction_loan_amount || Number(banksList[0].sanction_loan_amount) <= 0))
+                  }
                   className="inline-btn-save"
+                  title={
+                    fileStatus === 'Disburse' && (!banksList[0]?.sanction_loan_amount || Number(banksList[0].sanction_loan_amount) <= 0)
+                      ? "Please enter sanction amount before saving with Disburse status"
+                      : undefined
+                  }
                 >
                   <Check size={14} /> {editingFileId ? 'Update' : 'Save'}
                 </button>
@@ -1647,7 +1769,19 @@ export const FileLoggedIn: React.FC = () => {
                   </td>
 
                   {/* 6. Status (make the colored part a little big) */}
-                  <td style={{ textAlign: 'center' }}>
+                  <td 
+                    style={{ textAlign: 'center' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenFileDetails(f.id);
+                      setPrevStatusBeforeDisburse(f.status);
+                      const existingAmt = f.sanction_loan_amount ? String(f.sanction_loan_amount) : '';
+                      setDisburseSanctionAmount(existingAmt && Number(existingAmt) > 0 ? existingAmt : '');
+                      setDisburseError(null);
+                      setIsDisburseModalOpen(true);
+                    }}
+                    title="Click to set Disburse status & sanction amount"
+                  >
                     <span
                       className={`badge badge-${getFileStatusVariant(f.status)}`}
                       style={{
@@ -1659,7 +1793,8 @@ export const FileLoggedIn: React.FC = () => {
                         fontWeight: 600,
                         borderRadius: 'var(--radius-pill)',
                         whiteSpace: 'nowrap',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                        cursor: 'pointer'
                       }}
                     >
                       {f.status}
@@ -1710,6 +1845,181 @@ export const FileLoggedIn: React.FC = () => {
             Are you sure you want to permanently delete file <strong>{fileToDelete?.id}</strong> ({fileToDelete?.company_name})?
             <div style={{ color: 'var(--color-danger)', marginTop: '8px', fontSize: '13px' }}>
               This action cannot be undone. It will remove the file record, associated bank allocations, disbursements, and linked invoices.
+            </div>
+          </div>
+        </Modal>
+
+        {/* Disburse Sanction Amount Modal for List View */}
+        <Modal
+          isOpen={isDisburseModalOpen}
+          onClose={handleCancelDisburseModal}
+          title="Disburse File: Enter Sanction Loan Amount"
+          footer={
+            <>
+              <Button variant="secondary" onClick={handleCancelDisburseModal}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleConfirmDisburseModal}
+                disabled={!disburseSanctionAmount.trim() || Number(disburseSanctionAmount.replace(/,/g, '')) <= 0}
+                icon={<Check size={16} />}
+                style={{ backgroundColor: '#059669', borderColor: '#059669' }}
+              >
+                Confirm Sanction Amount
+              </Button>
+            </>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* File Summary Card */}
+            <div
+              style={{
+                padding: '12px 14px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                fontSize: '13px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>File ID:</span>
+                <span style={{ fontWeight: 700, color: '#2563eb', fontFamily: 'monospace' }}>
+                  {editingFileId || formFileId || 'New Entry'}
+                </span>
+              </div>
+              {(companyName || clientName) && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>Client / Company:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                    {companyName}{clientName && companyName !== clientName ? ` (${clientName})` : ''}
+                  </span>
+                </div>
+              )}
+              {banksList[0]?.bank_id && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>Bank:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                    {allBanks.find(b => String(b.id) === String(banksList[0].bank_id))?.bank_name || 'Selected Bank'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Sanction Loan Amount Input */}
+            <div>
+              <label className="form-label" style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>
+                Sanction Loan Amount (₹) <span style={{ color: '#dc2626' }}>*</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontWeight: 600,
+                    fontSize: '16px',
+                    color: 'var(--color-text-secondary)'
+                  }}
+                >
+                  ₹
+                </span>
+                <input
+                  type="text"
+                  value={disburseSanctionAmount}
+                  onChange={e => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setDisburseSanctionAmount(val);
+                    setDisburseError(null);
+                  }}
+                  placeholder="e.g. 5000000"
+                  className="input-control"
+                  autoFocus
+                  style={{
+                    paddingLeft: '32px',
+                    fontSize: '16px',
+                    fontWeight: 600,
+                    height: '42px',
+                    fontFamily: 'monospace'
+                  }}
+                />
+              </div>
+
+              {/* Quick Suggestion Chips */}
+              <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+                {[
+                  { label: '₹10 L', val: 1000000 },
+                  { label: '₹25 L', val: 2500000 },
+                  { label: '₹50 L', val: 5000000 },
+                  { label: '₹75 L', val: 7500000 },
+                  { label: '₹1 Cr', val: 10000000 }
+                ].map(chip => (
+                  <button
+                    key={chip.val}
+                    type="button"
+                    onClick={() => {
+                      setDisburseSanctionAmount(String(chip.val));
+                      setDisburseError(null);
+                    }}
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 500,
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      border: '1px solid #cbd5e1',
+                      backgroundColor: Number(disburseSanctionAmount) === chip.val ? '#eff6ff' : '#f8fafc',
+                      color: Number(disburseSanctionAmount) === chip.val ? '#1d4ed8' : '#334155',
+                      borderColor: Number(disburseSanctionAmount) === chip.val ? '#93c5fd' : '#cbd5e1',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Indian Currency Words Preview */}
+              {Number(disburseSanctionAmount) > 0 && (
+                <div
+                  style={{
+                    marginTop: '8px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#059669',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <span>🗣</span> {numberToWordsIndian(Number(disburseSanctionAmount))}
+                </div>
+              )}
+
+              {/* Validation Error */}
+              {disburseError && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '6px', fontWeight: 500 }}>
+                  {disburseError}
+                </div>
+              )}
+            </div>
+
+            {/* Workflow Explanation Banner */}
+            <div
+              style={{
+                padding: '10px 12px',
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '6px',
+                fontSize: '12px',
+                color: '#1e40af',
+                lineHeight: 1.5
+              }}
+            >
+              <strong>Note:</strong> Once you confirm and save the record with <em>Disburse</em> status, this file will automatically move to the <strong>Disbursement</strong> section carrying this sanction amount and will be removed from the File Logged-in list.
             </div>
           </div>
         </Modal>
