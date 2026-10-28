@@ -192,6 +192,11 @@ export interface AccountsRecord {
   client_name?: string;
   gst_no: string;
   firm_id: number;
+  firm_bank_name?: string;
+  firm_account_name?: string;
+  firm_account_no?: string;
+  firm_ifsc_code?: string;
+  firm_branch?: string;
   ledger_id?: number;
   voucher_id?: number | null;
   voucher_name?: string | null;

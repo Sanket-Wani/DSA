@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, RefreshCw, CheckCircle, AlertCircle, Search, X } from 'lucide-react';
-import { AccountsRecord, ReceivingAccount } from '../types/index.js';
+import { AccountsRecord } from '../types/index.js';
 import { apiRequest } from '../api/client.js';
 import { Button } from '../components/Button.js';
 
@@ -170,7 +170,6 @@ function getStatusBadgeStyle(status: SectionStatus): React.CSSProperties {
 
 export const Accounts: React.FC = () => {
   const [accounts, setAccounts] = useState<AccountsRecord[]>([]);
-  const [bankAccounts, setBankAccounts] = useState<ReceivingAccount[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -187,13 +186,9 @@ export const Accounts: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [accRes, bRes] = await Promise.all([
-        apiRequest<{ accounts: AccountsRecord[] }>('/api/accounts'),
-        apiRequest<{ accounts: ReceivingAccount[] }>('/api/receiving-accounts')
-      ]);
+      const accRes = await apiRequest<{ accounts: AccountsRecord[] }>('/api/accounts');
 
       setAccounts(accRes.accounts || []);
-      setBankAccounts(bRes.accounts || []);
 
       // Initialize drafts with auto-computed statuses from database values
       const initialDrafts: Record<string, any> = {};
@@ -213,19 +208,23 @@ export const Accounts: React.FC = () => {
         const enteredTds = Number(item.tds_amount || 0);
         const autoTdsStatus = computeSectionStatus(enteredTds, totalTds);
 
+        // Receiving bank account is predetermined by firm: Vinayak (ID 2), Mavin (ID 1)
+        const isVinayak = item.firm_id === 2 || (item.firm_name && item.firm_name.toLowerCase().includes('vinayak'));
+        const firmBankId = isVinayak ? 2 : 1;
+
         initialDrafts[item.invoice_id] = {
           voucher_id: item.voucher_id || '',
           taxable_received_date: item.taxable_received_date || '',
           taxable_amount: item.taxable_amount !== null && item.taxable_amount !== undefined ? String(item.taxable_amount) : '',
-          taxable_bank_account_id: item.taxable_bank_account_id || '',
+          taxable_bank_account_id: firmBankId,
           taxable_status: item.taxable_status || autoTaxableStatus,
           gst_received_date: item.gst_received_date || '',
           gst_amount: item.gst_amount !== null && item.gst_amount !== undefined ? String(item.gst_amount) : '',
-          gst_account_id: item.gst_account_id || '',
+          gst_account_id: firmBankId,
           gst_status: item.gst_status || autoGstStatus,
           tds_received_date: item.tds_received_date || '',
           tds_amount: item.tds_amount !== null && item.tds_amount !== undefined ? String(item.tds_amount) : '',
-          tds_bank_account_id: item.tds_bank_account_id || '',
+          tds_bank_account_id: firmBankId,
           tds_section: tdsSec,
           tds_status: item.tds_status || autoTdsStatus
         };
@@ -317,6 +316,17 @@ export const Accounts: React.FC = () => {
     const draft = editDrafts[invoiceId];
     if (!draft) return;
 
+    const acc = accounts.find(a => a.invoice_id === invoiceId);
+    const isVinayak = acc?.firm_id === 2 || (acc?.firm_name && acc.firm_name.toLowerCase().includes('vinayak'));
+    const firmBankId = isVinayak ? 2 : 1;
+
+    const payload = {
+      ...draft,
+      taxable_bank_account_id: firmBankId,
+      gst_account_id: firmBankId,
+      tds_bank_account_id: firmBankId
+    };
+
     setSavingInvoiceId(invoiceId);
     setError(null);
     setSuccessMsg(null);
@@ -324,7 +334,7 @@ export const Accounts: React.FC = () => {
     try {
       const res = await apiRequest<{ message: string; account: AccountsRecord }>(`/api/accounts/${invoiceId}`, {
         method: 'PUT',
-        body: JSON.stringify(draft)
+        body: JSON.stringify(payload)
       });
 
       setSuccessMsg(`Ledger sections updated successfully.`);
@@ -505,6 +515,12 @@ export const Accounts: React.FC = () => {
                 const tdsRatePct = tdsSec === '194H' ? '10%' : '2%';
                 const calculatedTdsHeader = `TDS: ₹${totalTds.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
+                // Firm receiving bank account is fixed and auto-filled from invoice firm
+                const isVinayak = acc.firm_id === 2 || (acc.firm_name && acc.firm_name.toLowerCase().includes('vinayak'));
+                const firmBankDisplay = isVinayak
+                  ? (acc.firm_bank_name ? `${acc.firm_bank_name} - ${acc.firm_account_no} (Vinayak Associates)` : 'ICICI Bank - 000405001234 (Vinayak Associates)')
+                  : (acc.firm_bank_name ? `${acc.firm_bank_name} - ${acc.firm_account_no} (Mavin Credits)` : 'HDFC Bank - 50200012345678 (Mavin Credits)');
+
                 return (
                   <React.Fragment key={acc.invoice_id}>
                     {/* Entire record row is clickable with dynamic color coding */}
@@ -627,19 +643,21 @@ export const Accounts: React.FC = () => {
                                     title="Taxable Amount Received (₹)"
                                   />
 
-                                  <select
-                                    value={draft.taxable_bank_account_id || ''}
-                                    onChange={e => handleDraftChange(acc.invoice_id, 'taxable_bank_account_id', e.target.value)}
-                                    className="select-control"
-                                    title="Bank Account"
-                                  >
-                                    <option value="">-- Bank Account --</option>
-                                    {bankAccounts.map(b => (
-                                      <option key={b.id} value={b.id}>
-                                        {b.account_name} ({b.account_number})
-                                      </option>
-                                    ))}
-                                  </select>
+                                  <input
+                                    type="text"
+                                    readOnly
+                                    value={firmBankDisplay}
+                                    placeholder="Bank Account"
+                                    className="input-control"
+                                    style={{
+                                      backgroundColor: '#f8fafc',
+                                      color: '#334155',
+                                      fontWeight: 600,
+                                      cursor: 'default',
+                                      border: '1px solid #cbd5e1'
+                                    }}
+                                    title={`Bank Account: ${firmBankDisplay}`}
+                                  />
 
                                   <select
                                     value={draft.taxable_status || taxableStatus}
@@ -686,19 +704,21 @@ export const Accounts: React.FC = () => {
                                     title="GST Amount Received (₹)"
                                   />
 
-                                  <select
-                                    value={draft.gst_account_id || ''}
-                                    onChange={e => handleDraftChange(acc.invoice_id, 'gst_account_id', e.target.value)}
-                                    className="select-control"
-                                    title="Bank Account"
-                                  >
-                                    <option value="">-- Bank Account --</option>
-                                    {bankAccounts.map(b => (
-                                      <option key={b.id} value={b.id}>
-                                        {b.account_name} ({b.account_number})
-                                      </option>
-                                    ))}
-                                  </select>
+                                  <input
+                                    type="text"
+                                    readOnly
+                                    value={firmBankDisplay}
+                                    placeholder="Bank Account"
+                                    className="input-control"
+                                    style={{
+                                      backgroundColor: '#f8fafc',
+                                      color: '#334155',
+                                      fontWeight: 600,
+                                      cursor: 'default',
+                                      border: '1px solid #cbd5e1'
+                                    }}
+                                    title={`Bank Account: ${firmBankDisplay}`}
+                                  />
 
                                   <select
                                     value={draft.gst_status || gstStatus}
@@ -779,19 +799,21 @@ export const Accounts: React.FC = () => {
                                     title="TDS Amount Received (₹)"
                                   />
 
-                                  <select
-                                    value={draft.tds_bank_account_id || ''}
-                                    onChange={e => handleDraftChange(acc.invoice_id, 'tds_bank_account_id', e.target.value)}
-                                    className="select-control"
-                                    title="Bank Account"
-                                  >
-                                    <option value="">-- Bank Account --</option>
-                                    {bankAccounts.map(b => (
-                                      <option key={b.id} value={b.id}>
-                                        {b.account_name} ({b.account_number})
-                                      </option>
-                                    ))}
-                                  </select>
+                                  <input
+                                    type="text"
+                                    readOnly
+                                    value={firmBankDisplay}
+                                    placeholder="Bank Account"
+                                    className="input-control"
+                                    style={{
+                                      backgroundColor: '#f8fafc',
+                                      color: '#334155',
+                                      fontWeight: 600,
+                                      cursor: 'default',
+                                      border: '1px solid #cbd5e1'
+                                    }}
+                                    title={`Bank Account: ${firmBankDisplay}`}
+                                  />
 
                                   <select
                                     value={draft.tds_status || tdsStatus}

@@ -22,6 +22,11 @@ router.get('/', (req, res) => {
         i.client_name_snapshot as client_name,
         i.client_gstin_snapshot as gst_no,
         i.firm_id,
+        fm.bank_name as firm_bank_name,
+        fm.account_name as firm_account_name,
+        fm.account_no as firm_account_no,
+        fm.ifsc_code as firm_ifsc_code,
+        fm.branch as firm_branch,
         a.id as ledger_id,
         a.voucher_id,
         v.voucher_name,
@@ -44,6 +49,7 @@ router.get('/', (req, res) => {
         COALESCE(a.tds_recovery_status, 'Pending') as tds_recovery_status,
         a.updated_at
       FROM invoices i
+      LEFT JOIN firms fm ON i.firm_id = fm.id
       LEFT JOIN accounts_ledger a ON i.id = a.invoice_id
       LEFT JOIN voucher_types v ON a.voucher_id = v.id
       LEFT JOIN receiving_bank_accounts rb_tax ON a.taxable_bank_account_id = rb_tax.id
@@ -81,10 +87,16 @@ router.put('/:invoiceId', (req, res) => {
 
   try {
     // 1. Verify invoice exists
-    const invoice = db.prepare('SELECT id FROM invoices WHERE id = ?').get(invoiceId);
+    const invoice = db.prepare('SELECT id, firm_id FROM invoices WHERE id = ?').get(invoiceId) as any;
     if (!invoice) {
       return res.status(404).json({ error: `Invoice with ID "${invoiceId}" not found.` });
     }
+
+    // Default receiving bank account: Firm 2 (Vinayak) -> ID 2; Firm 1 (Mavin) -> ID 1
+    const defaultBankId = invoice.firm_id === 2 ? 2 : 1;
+    const finalTaxBankId = taxable_bank_account_id ? Number(taxable_bank_account_id) : defaultBankId;
+    const finalGstBankId = gst_account_id ? Number(gst_account_id) : defaultBankId;
+    const finalTdsBankId = tds_bank_account_id ? Number(tds_bank_account_id) : defaultBankId;
 
     // 2. Validate voucher if provided
     if (voucher_id) {
@@ -95,16 +107,16 @@ router.put('/:invoiceId', (req, res) => {
     }
 
     // 3. Validate bank accounts if provided
-    if (taxable_bank_account_id) {
-      const b = db.prepare('SELECT id FROM receiving_bank_accounts WHERE id = ?').get(Number(taxable_bank_account_id));
+    if (finalTaxBankId) {
+      const b = db.prepare('SELECT id FROM receiving_bank_accounts WHERE id = ?').get(finalTaxBankId);
       if (!b) return res.status(400).json({ error: 'Selected Taxable Bank Account does not exist' });
     }
-    if (gst_account_id) {
-      const b = db.prepare('SELECT id FROM receiving_bank_accounts WHERE id = ?').get(Number(gst_account_id));
+    if (finalGstBankId) {
+      const b = db.prepare('SELECT id FROM receiving_bank_accounts WHERE id = ?').get(finalGstBankId);
       if (!b) return res.status(400).json({ error: 'Selected GST Account does not exist' });
     }
-    if (tds_bank_account_id) {
-      const b = db.prepare('SELECT id FROM receiving_bank_accounts WHERE id = ?').get(Number(tds_bank_account_id));
+    if (finalTdsBankId) {
+      const b = db.prepare('SELECT id FROM receiving_bank_accounts WHERE id = ?').get(finalTdsBankId);
       if (!b) return res.status(400).json({ error: 'Selected TDS Bank Account does not exist' });
     }
 
@@ -140,15 +152,15 @@ router.put('/:invoiceId', (req, res) => {
         voucher_id ? Number(voucher_id) : null,
         taxable_received_date || null,
         taxable_amount !== undefined && taxable_amount !== null && taxable_amount !== '' ? Number(taxable_amount) : null,
-        taxable_bank_account_id ? Number(taxable_bank_account_id) : null,
+        finalTaxBankId,
         taxable_status || 'Pending',
         gst_received_date || null,
         gst_amount !== undefined && gst_amount !== null && gst_amount !== '' ? Number(gst_amount) : null,
-        gst_account_id ? Number(gst_account_id) : null,
+        finalGstBankId,
         gst_status || 'Pending',
         tds_amount !== undefined && tds_amount !== null && tds_amount !== '' ? Number(tds_amount) : null,
         tds_received_date || null,
-        tds_bank_account_id ? Number(tds_bank_account_id) : null,
+        finalTdsBankId,
         tds_section || '194J',
         effectiveTdsStatus,
         effectiveTdsStatus,
@@ -170,15 +182,15 @@ router.put('/:invoiceId', (req, res) => {
         voucher_id ? Number(voucher_id) : null,
         taxable_received_date || null,
         taxable_amount !== undefined && taxable_amount !== null && taxable_amount !== '' ? Number(taxable_amount) : null,
-        taxable_bank_account_id ? Number(taxable_bank_account_id) : null,
+        finalTaxBankId,
         taxable_status || 'Pending',
         gst_received_date || null,
         gst_amount !== undefined && gst_amount !== null && gst_amount !== '' ? Number(gst_amount) : null,
-        gst_account_id ? Number(gst_account_id) : null,
+        finalGstBankId,
         gst_status || 'Pending',
         tds_amount !== undefined && tds_amount !== null && tds_amount !== '' ? Number(tds_amount) : null,
         tds_received_date || null,
-        tds_bank_account_id ? Number(tds_bank_account_id) : null,
+        finalTdsBankId,
         tds_section || '194J',
         effectiveTdsStatus,
         effectiveTdsStatus,
@@ -203,6 +215,11 @@ router.put('/:invoiceId', (req, res) => {
         i.client_name_snapshot as client_name,
         i.client_gstin_snapshot as gst_no,
         i.firm_id,
+        fm.bank_name as firm_bank_name,
+        fm.account_name as firm_account_name,
+        fm.account_no as firm_account_no,
+        fm.ifsc_code as firm_ifsc_code,
+        fm.branch as firm_branch,
         a.id as ledger_id,
         a.voucher_id,
         v.voucher_name,
@@ -226,6 +243,7 @@ router.put('/:invoiceId', (req, res) => {
         a.updated_at
       FROM invoices i
       JOIN accounts_ledger a ON i.id = a.invoice_id
+      LEFT JOIN firms fm ON i.firm_id = fm.id
       LEFT JOIN voucher_types v ON a.voucher_id = v.id
       LEFT JOIN receiving_bank_accounts rb_tax ON a.taxable_bank_account_id = rb_tax.id
       LEFT JOIN receiving_bank_accounts rb_gst ON a.gst_account_id = rb_gst.id
