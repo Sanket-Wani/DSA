@@ -61,6 +61,7 @@ export const FileLoggedIn: React.FC = () => {
 
   // Inline Horizontal Form State
   const [isInlineCreating, setIsInlineCreating] = useState(false);
+  const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [previewFileId, setPreviewFileId] = useState<string>('');
 
@@ -134,6 +135,11 @@ export const FileLoggedIn: React.FC = () => {
 
   // Dynamically calculate and preview next File ID when Product is selected
   useEffect(() => {
+    // When editing an existing file, preserve its exact File ID
+    if (editingFileId) {
+      setPreviewFileId(editingFileId);
+      return;
+    }
     if (!productId) {
       setPreviewFileId('');
       return;
@@ -151,15 +157,19 @@ export const FileLoggedIn: React.FC = () => {
         const code = acr.length === 2 ? acr + 'X' : acr.slice(0, 3);
         setPreviewFileId(`${yr}${code}...`);
       });
-  }, [productId, products]);
+  }, [productId, products, editingFileId]);
 
   // Toggle inline New File Entry horizontal form row
   const handleToggleInlineCreate = () => {
-    if (isInlineCreating) {
+    if (isInlineCreating && !editingFileId) {
       setIsInlineCreating(false);
       setInlineError(null);
       return;
     }
+
+    setEditingFileId(null);
+    setSelectedFileId(null);
+    setSelectedFile(null);
 
     const today = new Date();
     const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
@@ -189,7 +199,7 @@ export const FileLoggedIn: React.FC = () => {
 
   const handleOpenNewFile = handleToggleInlineCreate;
 
-  // Save Inline New File Entry
+  // Save Inline File Entry (Create or Update)
   const handleSaveInlineEntry = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setInlineError(null);
@@ -230,37 +240,59 @@ export const FileLoggedIn: React.FC = () => {
         banks: banksList.map(b => ({
           bank_id: Number(b.bank_id),
           bank_manager_name: b.bank_manager_name.trim(),
-          sanction_loan_amount: 0
+          sanction_loan_amount: Number(b.sanction_loan_amount) || 0
         }))
       };
 
-      const res = await apiRequest<{ file: FileRecord }>('/api/files', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      if (editingFileId) {
+        // UPDATE existing record
+        const res = await apiRequest<{ file: FileRecord }>(`/api/files/${editingFileId}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        });
+        setSuccessMsg(`File "${editingFileId}" updated successfully.`);
+      } else {
+        // CREATE new record
+        const res = await apiRequest<{ file: FileRecord }>('/api/files', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        setSuccessMsg(`File "${res.file.id}" created successfully.`);
+      }
 
-      setSuccessMsg(`File "${res.file.id}" created successfully.`);
       setIsInlineCreating(false);
+      setEditingFileId(null);
       setInlineError(null);
       await fetchFiles();
     } catch (err: any) {
-      setInlineError(err.message || 'Failed to save new file');
+      setInlineError(err.message || 'Failed to save file');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Open file in Detailed View / Edit mode
+  // Open file in Inline Horizontal Form (for editing previous records)
   const handleOpenFileDetails = async (fileId: string) => {
+    // If clicking the currently open file, toggle close it
+    if (isInlineCreating && editingFileId === fileId) {
+      setIsInlineCreating(false);
+      setEditingFileId(null);
+      setInlineError(null);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
+    setInlineError(null);
     try {
       const data = await apiRequest<{ file: FileRecord }>(`/api/files/${fileId}`);
       const f = data.file;
       setSelectedFile(f);
       setSelectedFileId(f.id);
+      setEditingFileId(f.id);
 
       setFormFileId(f.id);
+      setPreviewFileId(f.id);
       let formattedDate = '';
       if (f.login_date) {
         const d = new Date(f.login_date);
@@ -268,11 +300,12 @@ export const FileLoggedIn: React.FC = () => {
       }
       setFormLoginDate(formattedDate || f.login_date || '');
       setCompanyName(f.company_name || '');
-      setGstNo(f.gst_no || '');
+      setGstNo(f.gst_no === 'URP' ? '' : (f.gst_no || ''));
       setClientName(f.client_name || '');
       setClientPhone(f.client_phone || '');
       setClientEmail(f.client_email || '');
       setProductId(String(f.product_id || ''));
+      setFirmId(String(f.firm_id || '1'));
       setSalesMemberId(String(f.sales_member_id || ''));
       setFileCode(f.code || '');
       setCaseSource(f.source || '');
@@ -304,7 +337,11 @@ export const FileLoggedIn: React.FC = () => {
         ]);
       }
 
-      setViewMode('detail');
+      setIsInlineCreating(true);
+      setViewMode('list');
+
+      // Smooth scroll up to horizontal form
+      window.scrollTo({ top: 120, behavior: 'smooth' });
     } catch (err: any) {
       setError(err.message || `Failed to open details for file ${fileId}`);
     } finally {
@@ -1163,9 +1200,65 @@ export const FileLoggedIn: React.FC = () => {
         </div>
       </div>
 
-      {/* Separate New File Entry Form Container Above Table */}
+      {/* Separate New / Edit File Entry Form Container Above Table */}
       {isInlineCreating && (
         <div className="separate-file-form-card">
+          {editingFileId && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '10px',
+                paddingBottom: '8px',
+                borderBottom: '1px solid #cbd5e1'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: '#1e3a8a',
+                    backgroundColor: '#dbeafe',
+                    border: '1px solid #bfdbfe',
+                    padding: '3px 10px',
+                    borderRadius: '4px'
+                  }}
+                >
+                  Editing File: {editingFileId}
+                </span>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  Update details in the horizontal fields below and click Update to save changes.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const current = selectedFile || files.find(f => f.id === editingFileId) || null;
+                  setFileToDelete(current);
+                  setIsDeleteModalOpen(true);
+                }}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: '#dc2626',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '3px 8px',
+                  borderRadius: '4px'
+                }}
+                title="Delete this file"
+              >
+                <Trash2 size={13} /> Delete File
+              </button>
+            </div>
+          )}
+
           {inlineError && (
             <div className="inline-form-error-banner">
               <span>{inlineError}</span>
@@ -1401,6 +1494,7 @@ export const FileLoggedIn: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setIsInlineCreating(false);
+                    setEditingFileId(null);
                     setInlineError(null);
                   }}
                   className="inline-btn-cancel"
@@ -1413,7 +1507,7 @@ export const FileLoggedIn: React.FC = () => {
                   disabled={isLoading}
                   className="inline-btn-save"
                 >
-                  <Check size={14} /> Save
+                  <Check size={14} /> {editingFileId ? 'Update' : 'Save'}
                 </button>
               </div>
             </div>
@@ -1449,16 +1543,38 @@ export const FileLoggedIn: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              files.map(f => (
+              files.map(f => {
+              const isCurrentlyEditing = isInlineCreating && editingFileId === f.id;
+              return (
                 <tr
                   key={f.id}
                   onClick={() => handleOpenFileDetails(f.id)}
-                  style={{ cursor: 'pointer' }}
-                  title="Click to view file details"
+                  style={{
+                    cursor: 'pointer',
+                    backgroundColor: isCurrentlyEditing ? '#eff6ff' : undefined,
+                    transition: 'background-color 0.15s ease'
+                  }}
+                  title={isCurrentlyEditing ? "Currently open in horizontal editor above" : "Click to load and edit in horizontal form above"}
                 >
                   {/* 1. File ID */}
-                  <td style={{ fontWeight: 600, color: 'var(--color-action-primary)' }}>
+                  <td style={{ fontWeight: 600, color: isCurrentlyEditing ? '#2563eb' : 'var(--color-action-primary)' }}>
                     <span className="num-tabular">{f.id}</span>
+                    {isCurrentlyEditing && (
+                      <span
+                        style={{
+                          marginLeft: '6px',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          backgroundColor: '#dbeafe',
+                          color: '#1e40af',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        Editing
+                      </span>
+                    )}
                   </td>
 
                   {/* 2. Login Date */}
@@ -1539,8 +1655,9 @@ export const FileLoggedIn: React.FC = () => {
                     ₹{f.sanction_loan_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
-              ))
-            )}
+              );
+            })
+          )}
           </tbody>
         </table>
 

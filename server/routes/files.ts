@@ -469,6 +469,7 @@ router.put('/:id', (req, res) => {
       client_email,
       client_phone,
       product_id,
+      firm_id,
       sales_member_id,
       code,
       source,
@@ -481,12 +482,13 @@ router.put('/:id', (req, res) => {
 
     const errors: string[] = [];
     if (!company_name?.trim()) errors.push("Client's Company name is required");
-    if (!gst_no?.trim()) errors.push("Client's GST no. is required");
     if (!client_name?.trim()) errors.push("Client name is required");
-    if (!client_email?.trim() || !client_email.includes('@')) errors.push("Valid client email ID is required");
     if (!product_id) errors.push("Product selection is required");
     if (!sales_member_id) errors.push("Office sales member selection is required");
     if (!code?.trim()) errors.push("Code is required");
+
+    const finalEmail = client_email?.trim() || `${company_name.trim().toLowerCase().replace(/[^a-z0-9]/g, '') || 'client'}@vinayakassociates.in`;
+    const finalGst = gst_no?.trim() ? gst_no.trim().toUpperCase() : 'URP';
 
     let banksList: Array<{ bank_id: number; bank_manager_name: string; sanction_loan_amount: number }> = [];
     if (Array.isArray(banks) && banks.length > 0) {
@@ -498,18 +500,14 @@ router.put('/:id', (req, res) => {
       for (const [idx, b] of banksList.entries()) {
         if (!b.bank_id) errors.push(`Bank ${idx + 1} selection is required`);
         if (!b.bank_manager_name) errors.push(`Bank ${idx + 1} manager name is required`);
-        if (b.sanction_loan_amount <= 0) errors.push(`Bank ${idx + 1} sanction amount must be positive`);
       }
     } else {
       if (!bank_id) errors.push("Bank selection is required");
       if (!bank_manager_name?.trim()) errors.push("Bank manager name is required");
-      if (!sanction_loan_amount || Number(sanction_loan_amount) <= 0) {
-        errors.push("Valid positive Sanction Loan Amount is required");
-      }
       banksList = [{
         bank_id: Number(bank_id),
         bank_manager_name: String(bank_manager_name || '').trim(),
-        sanction_loan_amount: Number(sanction_loan_amount)
+        sanction_loan_amount: Number(sanction_loan_amount) || 0
       }];
     }
 
@@ -534,9 +532,9 @@ router.put('/:id', (req, res) => {
         WHERE id = ?
       `).run(
         company_name.trim(),
-        gst_no.trim(),
+        finalGst,
         client_name.trim(),
-        client_email.trim(),
+        finalEmail,
         client_phone ? client_phone.trim() : null,
         existingFile.client_id
       );
@@ -545,7 +543,8 @@ router.put('/:id', (req, res) => {
       db.prepare(`
         UPDATE files
         SET product_id = ?, sales_member_id = ?, code = ?, source = ?,
-            bank_id = ?, bank_manager_name = ?, sanction_loan_amount = ?, status = ?
+            bank_id = ?, bank_manager_name = ?, sanction_loan_amount = ?, status = ?,
+            firm_id = ?
         WHERE id = ?
       `).run(
         Number(product_id),
@@ -556,6 +555,7 @@ router.put('/:id', (req, res) => {
         primaryManager,
         totalSanction,
         updatedStatus,
+        Number(firm_id) || existingFile.firm_id || 1,
         fileId
       );
 

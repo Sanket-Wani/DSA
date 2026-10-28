@@ -118,6 +118,7 @@ export interface FileRecord {
   source?: string | null;
   sanction_loan_amount: number;
   status: FileStatus;
+  firm_id?: number;
   banks?: FileBankEntry[];
   created_at: string;
   reviewed_at?: string | null;
