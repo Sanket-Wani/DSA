@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Search, CheckCircle, AlertCircle, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Search, CheckCircle, AlertCircle, AlertTriangle, X, RefreshCw } from 'lucide-react';
 import { FileRecord, DisbursementRecord } from '../types/index.js';
 import { apiRequest } from '../api/client.js';
 import { Button } from '../components/Button.js';
-import { Input } from '../components/Input.js';
+import { numberToWordsIndian } from '../utils/numberToWords.js';
 
 interface EditableRow {
   id: string;
@@ -42,7 +42,6 @@ export const Disbursements: React.FC = () => {
   // Individual Files Disbursements State
   const [fileDisbursements, setFileDisbursements] = useState<FileDisbursementRecord[]>([]);
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
-  const [activeTab, setActiveTab] = useState<'current' | 'all'>('current');
 
   // Errors / Feedback
   const [lookupError, setLookupError] = useState<string | null>(null);
@@ -96,7 +95,6 @@ export const Disbursements: React.FC = () => {
       setFileData(data.file);
       setExistingDisbursements(data.existingDisbursements || []);
       setTotalDisbursed(data.totalDisbursed || 0);
-      setActiveTab('current');
 
       // Initialize with one empty row for new tranche entry
       setRows([{ id: String(Date.now()), amount: '', date: new Date().toISOString().split('T')[0] }]);
@@ -108,16 +106,6 @@ export const Disbursements: React.FC = () => {
     } finally {
       setIsSearching(false);
     }
-  };
-
-  const handleLookup = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    fetchDisbursementsForFile(lookupFileId);
-  };
-
-  const handleSelectApprovedFile = (file: FileRecord) => {
-    setLookupFileId(file.id);
-    fetchDisbursementsForFile(file.id);
   };
 
   const handleAddRow = () => {
@@ -226,8 +214,8 @@ export const Disbursements: React.FC = () => {
       const newTotal = (res.disbursements || []).reduce((sum, d) => sum + Number(d.disbursement_amount), 0);
       setTotalDisbursed(newTotal);
 
-      // Refresh all previous disbursements list
-      loadAllPreviousDisbursements();
+      // Refresh all previous disbursements list in table
+      await loadAllPreviousDisbursements();
 
       // Reset new entry rows
       setRows([{ id: String(Date.now()), amount: '', date: new Date().toISOString().split('T')[0] }]);
@@ -237,6 +225,25 @@ export const Disbursements: React.FC = () => {
       setIsSaving(false);
     }
   };
+
+  const formatLoginDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  };
+
+  const fileBanks = fileData?.banks && fileData.banks.length > 0
+    ? fileData.banks
+    : fileData
+    ? [
+        {
+          bank_name: fileData.bank_name || '—',
+          bank_manager_name: fileData.bank_manager_name || '—',
+          sanction_loan_amount: fileData.sanction_loan_amount
+        }
+      ]
+    : [];
 
   return (
     <div className="page-content">
@@ -268,6 +275,15 @@ export const Disbursements: React.FC = () => {
           </Button>
         </div>
       )}
+      {lookupError && (
+        <div className="alert alert-danger" style={{ marginBottom: '16px' }}>
+          <AlertCircle size={16} />
+          <span>{lookupError}</span>
+          <Button variant="ghost" size="sm" onClick={() => setLookupError(null)} style={{ marginLeft: 'auto' }}>
+            Dismiss
+          </Button>
+        </div>
+      )}
 
       {/* Search & Actions Toolbar */}
       <div
@@ -275,7 +291,7 @@ export const Disbursements: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '20px',
+          marginBottom: '16px',
           gap: '12px',
           flexWrap: 'wrap'
         }}
@@ -301,545 +317,820 @@ export const Disbursements: React.FC = () => {
           )}
         </div>
 
-        <Button
-          variant="secondary"
-          size="md"
-          onClick={loadAllPreviousDisbursements}
-          isLoading={isLoadingPrevious}
-        >
-          Refresh
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span className="badge badge-neutral" style={{ fontSize: '11px' }}>
+            {filteredDisbursements.length} record{filteredDisbursements.length === 1 ? '' : 's'}
+          </span>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={loadAllPreviousDisbursements}
+            isLoading={isLoadingPrevious}
+            icon={<RefreshCw size={14} />}
+            aria-label="Refresh list"
+          >
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      {/* 'Disbursed Amounts' List under the input field */}
-      <div style={{ marginBottom: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Disbursed Amounts {fileData ? `for File: ${fileData.id}` : ''}
-              </div>
-              {!fileData && (
-                <span className="badge badge-neutral" style={{ fontSize: '11px' }}>
-                  {filteredDisbursements.length} disbursed account{filteredDisbursements.length === 1 ? '' : 's'}
-                </span>
-              )}
-            </div>
-
-            {fileData ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'inline-flex', borderRadius: '4px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
-                  <button
-                    type="button"
-                    style={{
-                      padding: '4px 10px',
-                      fontSize: '12px',
-                      fontWeight: activeTab === 'current' ? 600 : 400,
-                      backgroundColor: activeTab === 'current' ? 'var(--color-surface-subtle)' : '#fff',
-                      color: activeTab === 'current' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                      border: 'none',
-                      borderRight: '1px solid var(--color-border)',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => setActiveTab('current')}
-                  >
-                    File {fileData.id} ({existingDisbursements.length} tranches)
-                  </button>
-                  <button
-                    type="button"
-                    style={{
-                      padding: '4px 10px',
-                      fontSize: '12px',
-                      fontWeight: activeTab === 'all' ? 600 : 400,
-                      backgroundColor: activeTab === 'all' ? 'var(--color-surface-subtle)' : '#fff',
-                      color: activeTab === 'all' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                      border: 'none',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => setActiveTab('all')}
-                  >
-                    All Disbursed Accounts ({filteredDisbursements.length})
-                  </button>
-                </div>
-
-                {activeTab === 'current' && (
-                  <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                    Total Disbursed: <strong style={{ color: 'var(--color-text-primary)' }}>₹{totalDisbursed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong> of ₹{fileData.sanction_loan_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    <span style={{ margin: '0 6px', color: 'var(--color-text-tertiary)' }}>•</span>
-                    Remaining: <strong style={{ color: remainingBalance > 0 ? '#b45309' : 'var(--color-success)' }}>₹{remainingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                Individual accounts showing the number of disbursements done till now
-              </div>
-            )}
-          </div>
-
-          {/* Render Current File Disbursements */}
-          {fileData && activeTab === 'current' ? (
-            existingDisbursements.length === 0 ? (
-              <div
-                style={{
-                  padding: '20px',
-                  textAlign: 'center',
-                  backgroundColor: 'var(--color-surface-subtle)',
-                  borderRadius: '6px',
-                  border: '1px dashed var(--color-border)',
-                  color: 'var(--color-text-secondary)',
-                  fontSize: '13px'
-                }}
-              >
-                No disbursement tranches recorded yet for file <strong>{fileData.id}</strong>. Add entries using the form below.
-              </div>
-            ) : (
-              <div className="table-container">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Tranche #</th>
-                      <th>Disbursement Date</th>
-                      <th style={{ textAlign: 'right' }}>Disbursed Amount (₹)</th>
-                      <th>Recorded At</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {existingDisbursements.map((d, idx) => (
-                      <tr key={d.id || idx}>
-                        <td style={{ fontWeight: 600 }}>Tranche {idx + 1}</td>
-                        <td className="num-tabular">{d.disbursement_date}</td>
-                        <td className="table-cell-num" style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                          ₹{Number(d.disbursement_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                          {d.created_at ? d.created_at.split('T')[0] : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr style={{ backgroundColor: 'var(--color-surface-subtle)', fontWeight: 600 }}>
-                      <td colSpan={2} style={{ textAlign: 'right' }}>Total Disbursed:</td>
-                      <td className="table-cell-num" style={{ fontWeight: 700, color: 'var(--color-action-primary)' }}>
-                        ₹{totalDisbursed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )
-          ) : (
-            /* Render All Disbursed Files with Disbursement Count */
-            filteredDisbursements.length === 0 ? (
-              <div
-                style={{
-                  padding: '24px',
-                  textAlign: 'center',
-                  backgroundColor: 'var(--color-surface-subtle)',
-                  borderRadius: '6px',
-                  border: '1px dashed var(--color-border)',
-                  color: 'var(--color-text-secondary)',
-                  fontSize: '13px'
-                }}
-              >
-                {isLoadingPrevious
-                  ? 'Loading disbursement records...'
-                  : search
-                  ? 'No disbursement records match your search query.'
-                  : 'No disbursed accounts recorded yet in the system.'}
-              </div>
-            ) : (
-              <div className="table-container">
-                <table className="data-table">
-                  <thead>
-                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', width: '14%' }}>File ID</th>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', width: '28%' }}>Client / Company & GSTIN</th>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', width: '20%' }}>Bank & Bank Manager</th>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right', width: '13%' }}>Sanction Amount (₹)</th>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right', width: '13%' }}>Total Disbursed (₹)</th>
-                      <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right', width: '12%' }}>Remaining Amount (₹)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredDisbursements.map((f) => {
-                      const isCurrentFile = fileData?.id === f.file_id;
-                      return (
-                        <tr
-                          key={f.file_id}
-                          className={`clickable-row ${isCurrentFile ? 'selected-row' : ''}`}
-                          onClick={() => {
-                            setLookupFileId(f.file_id);
-                            fetchDisbursementsForFile(f.file_id);
-                          }}
-                          style={{
-                            cursor: 'pointer',
-                            backgroundColor: isCurrentFile ? '#eff6ff' : undefined,
-                            transition: 'background-color 0.15s ease'
-                          }}
-                          title={`Click to select file ${f.file_id} and view disbursement details`}
-                        >
-                          {/* 1. File ID */}
-                          <td>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setLookupFileId(f.file_id);
-                                fetchDisbursementsForFile(f.file_id);
-                              }}
-                              style={{
-                                fontFamily: 'monospace',
-                                fontWeight: 600,
-                                fontSize: '12px',
-                                color: isCurrentFile ? '#1d4ed8' : '#1e293b',
-                                backgroundColor: isCurrentFile ? '#eff6ff' : '#f1f5f9',
-                                border: `1px solid ${isCurrentFile ? '#bfdbfe' : '#e2e8f0'}`,
-                                padding: '4px 10px',
-                                borderRadius: '6px',
-                                cursor: 'pointer'
-                              }}
-                              title={`Click to select ${f.file_id}`}
-                            >
-                              {f.file_id}
-                            </button>
-                          </td>
-
-                          {/* 2. Client Company Name and Client Name and GSTIN */}
-                          <td>
-                            <div style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>
-                              {f.company_name || '—'}
-                            </div>
-                            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                              {f.client_name || ''}
-                            </div>
-                            {f.gst_no && f.gst_no !== 'URP' ? (
-                              <div style={{ fontSize: '11px', fontFamily: 'monospace', color: '#475569', marginTop: '2px' }}>
-                                GSTIN: <span style={{ fontWeight: 600, color: '#1e293b' }}>{f.gst_no}</span>
-                              </div>
-                            ) : (
-                              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-                                GSTIN: Unregistered (URP)
-                              </div>
-                            )}
-                          </td>
-
-                          {/* 3. Bank and Bank Manager */}
-                          <td>
-                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>
-                              {f.bank_name || '—'}
-                            </div>
-                            {f.bank_manager_name ? (
-                              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                                Mgr: <span style={{ color: '#334155' }}>{f.bank_manager_name}</span>
-                              </div>
-                            ) : (
-                              <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
-                                Mgr: —
-                              </div>
-                            )}
-                          </td>
-
-                          {/* 4. Sanction Amount */}
-                          <td className="table-cell-num" style={{ fontWeight: 600 }}>
-                            ₹{Number(f.sanction_loan_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-
-                          {/* 5. Total Disbursed */}
-                          <td className="table-cell-num" style={{ fontWeight: 700, color: '#111827' }}>
-                            ₹{Number(f.total_disbursed_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-
-                          {/* 6. Remaining Amount */}
-                          <td
-                            className="table-cell-num"
-                            style={{
-                              color: f.remaining_amount > 0 ? '#b45309' : '#16a34a',
-                              fontWeight: 600
-                            }}
-                          >
-                            ₹{Number(f.remaining_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )
-          )}
-        </div>
-
-      {/* Autofetched File Details and Disbursement Entry */}
+      {/* DETAILED VIEW: FILE LOGGED-IN HORIZONTAL FORM DISPLAY WITH ATTACHED DISBURSEMENT SECTION */}
       {fileData && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* File Metadata Overview Card */}
-          <div className="panel">
-            <div className="panel-header">
-              <div>
-                <h2 className="panel-title">Linked Approved File: {fileData.id}</h2>
-                <div className="panel-description">Autofetched canonical details from database</div>
-              </div>
-              <span className="badge badge-success">
-                <span className="badge-dot" /> {fileData.status || 'Disburse'}
+        <div className="separate-file-form-card" style={{ marginBottom: '24px' }}>
+          {/* Header of Detailed View */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '10px',
+              paddingBottom: '8px',
+              borderBottom: '1px solid #cbd5e1',
+              flexWrap: 'wrap',
+              gap: '8px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: '#1e3a8a',
+                  backgroundColor: '#dbeafe',
+                  border: '1px solid #bfdbfe',
+                  padding: '3px 10px',
+                  borderRadius: '4px'
+                }}
+              >
+                Disbursed File Details: {fileData.id}
+              </span>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>
+                {fileData.firm_name || 'Mavin Credits'} • {fileData.company_name} ({fileData.client_name})
               </span>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setFileData(null);
+                setLookupFileId('');
+              }}
+              className="inline-btn-cancel"
+              style={{
+                height: '28px',
+                padding: '0 10px',
+                fontSize: '12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer'
+              }}
+              title="Close detailed view and revert to table"
+            >
+              <X size={13} /> Close View
+            </button>
+          </div>
 
-            <div className="grid-3" style={{ marginTop: '12px' }}>
-              <div>
-                <label className="form-label">Client Company Name</label>
-                <div style={{ fontWeight: 600, fontSize: 'var(--font-size-md)' }}>{fileData.company_name}</div>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                  GST: {fileData.gst_no}
+          {/* 6-Column Horizontal Grid Replicating File Logged-In Formatting */}
+          <div className="new-file-form-6col-grid">
+            {/* Column 1 Box: File ID, Date, Product */}
+            <div className="form-card-box">
+              <input
+                type="text"
+                readOnly
+                value={fileData.id}
+                className="inline-field-input inline-field-input-readonly"
+                title={`File ID: ${fileData.id}`}
+              />
+
+              <input
+                type="text"
+                readOnly
+                value={formatLoginDate(fileData.login_date) || fileData.login_date || ''}
+                className="inline-field-input inline-field-input-readonly"
+                title={`Login Date: ${formatLoginDate(fileData.login_date)}`}
+              />
+
+              <input
+                type="text"
+                readOnly
+                value={`${fileData.product_acronym ? fileData.product_acronym + ' — ' : ''}${fileData.product_name || 'Product'}`}
+                className="inline-field-input inline-field-input-readonly"
+                title={`Product: ${fileData.product_name} (${fileData.product_acronym})`}
+              />
+            </div>
+
+            {/* Column 2 Box: Clients Company name, Clients name, Clients GSTIN */}
+            <div className="form-card-box">
+              <input
+                type="text"
+                readOnly
+                value={fileData.company_name || ''}
+                className="inline-field-input inline-field-input-readonly"
+                title={`Company Name: ${fileData.company_name}`}
+              />
+
+              <input
+                type="text"
+                readOnly
+                value={fileData.client_name || ''}
+                className="inline-field-input inline-field-input-readonly"
+                title={`Client Name: ${fileData.client_name}`}
+              />
+
+              <input
+                type="text"
+                readOnly
+                value={fileData.gst_no && fileData.gst_no !== 'URP' ? fileData.gst_no : 'URP (Unregistered)'}
+                className="inline-field-input inline-field-input-readonly"
+                style={{ textTransform: 'uppercase' }}
+                title={`GSTIN: ${fileData.gst_no || 'URP'}`}
+              />
+            </div>
+
+            {/* Columns 3 to 5 Middle Area: Spans 3 columns with Upper & Lower boxes */}
+            <div className="form-6col-middle-area">
+              {/* Upper Box: Firm name, Office Sales Member Name, Code, Case source */}
+              <div className="form-card-box form-middle-upper-box">
+                <div className="form-3col-row">
+                  <input
+                    type="text"
+                    readOnly
+                    value={fileData.firm_name || 'Mavin Credits'}
+                    className="inline-field-input inline-field-input-readonly"
+                    title={`Firm: ${fileData.firm_name || 'Mavin Credits'}`}
+                  />
+
+                  <input
+                    type="text"
+                    readOnly
+                    value={fileData.sales_member_name || (fileData as any).sales_member || '—'}
+                    className="inline-field-input inline-field-input-readonly"
+                    title={`Sales Member: ${fileData.sales_member_name || '—'}`}
+                  />
+
+                  <input
+                    type="text"
+                    readOnly
+                    value={fileData.code || '—'}
+                    className="inline-field-input inline-field-input-readonly"
+                    title={`Code: ${fileData.code || '—'}`}
+                  />
+                </div>
+
+                <div className="form-3col-row">
+                  <input
+                    type="text"
+                    readOnly
+                    value={fileData.source ? `Source: ${fileData.source}` : 'Source: —'}
+                    className="inline-field-input inline-field-input-readonly"
+                    title={`Source: ${fileData.source || '—'}`}
+                  />
+
+                  <input
+                    type="text"
+                    readOnly
+                    value={fileData.client_phone ? `Phone: ${fileData.client_phone}` : 'Phone: —'}
+                    className="inline-field-input inline-field-input-readonly"
+                    title={`Phone: ${fileData.client_phone || '—'}`}
+                  />
+
+                  <input
+                    type="text"
+                    readOnly
+                    value={fileData.client_email ? `Email: ${fileData.client_email}` : 'Email: —'}
+                    className="inline-field-input inline-field-input-readonly"
+                    title={`Email: ${fileData.client_email || '—'}`}
+                  />
                 </div>
               </div>
 
-              <div>
-                <label className="form-label">Client Contact & Email</label>
-                <div style={{ fontWeight: 500 }}>{fileData.client_name}</div>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                  {fileData.client_email}
-                </div>
-              </div>
+              {/* Lower Box: Bank, Bank Manager / Consultant Name */}
+              <div className="form-card-box form-middle-lower-box">
+                {fileBanks.map((b, idx) => (
+                  <div key={idx} className="form-3col-row" style={{ alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      readOnly
+                      value={b.bank_name || '—'}
+                      className="inline-field-input inline-field-input-readonly"
+                      title={`Bank: ${b.bank_name}`}
+                    />
 
-              <div>
-                <label className="form-label">Sanction Loan Amount</label>
-                <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)', color: 'var(--color-text-primary)' }}>
-                  ₹{fileData.sanction_loan_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </div>
+                    <input
+                      type="text"
+                      readOnly
+                      value={b.bank_manager_name ? `Mgr: ${b.bank_manager_name}` : 'Mgr: —'}
+                      className="inline-field-input inline-field-input-readonly"
+                      title={`Bank Manager: ${b.bank_manager_name || '—'}`}
+                    />
+
+                    <input
+                      type="text"
+                      readOnly
+                      value={b.sanction_loan_amount ? `Sanction: ₹${Number(b.sanction_loan_amount).toLocaleString('en-IN')}` : '—'}
+                      className="inline-field-input inline-field-input-readonly"
+                      style={{ fontWeight: 600, color: '#047857' }}
+                      title={`Sanction: ₹${Number(b.sanction_loan_amount || 0).toLocaleString('en-IN')}`}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="grid-3" style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
-              <div>
-                <label className="form-label">Bank Name</label>
-                <div>{fileData.bank_name}</div>
+            {/* Column 6: Status at top, TOTAL SANCTIONED AMOUNT prominently featured */}
+            <div className="col-6-status-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'space-between', height: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {/* File Status Badge */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '6px 8px',
+                    backgroundColor: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    borderRadius: '6px',
+                    color: '#065f46',
+                    fontWeight: 700,
+                    fontSize: '11.5px',
+                    textAlign: 'center',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                  }}
+                  title="File Status: Disburse"
+                >
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#10b981', marginRight: '6px', display: 'inline-block' }} />
+                  {fileData.status || 'Disburse'}
+                </div>
+
+                {/* Total Sanctioned Amount Highlight Box */}
+                <div
+                  style={{
+                    backgroundColor: '#eff6ff',
+                    border: '1.5px solid #93c5fd',
+                    borderRadius: '6px',
+                    padding: '8px 10px',
+                    textAlign: 'center',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Total Sanctioned Amount
+                  </div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: '#1e3a8a', marginTop: '2px', fontFamily: 'monospace' }}>
+                    ₹{Number(fileData.sanction_loan_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                  <div style={{ fontSize: '9.5px', color: '#2563eb', marginTop: '2px', fontWeight: 500, lineHeight: 1.2 }}>
+                    {numberToWordsIndian(Number(fileData.sanction_loan_amount))}
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="form-label">Product</label>
-                <div>{fileData.product_name} ({fileData.product_acronym})</div>
-              </div>
-
-              <div>
-                <label className="form-label">Case Sourced</label>
-                <div>{fileData.source || '—'}</div>
-              </div>
+              {/* Close View Action */}
+              <button
+                type="button"
+                onClick={() => {
+                  setFileData(null);
+                  setLookupFileId('');
+                }}
+                className="inline-btn-cancel"
+                style={{
+                  width: '100%',
+                  height: '32px',
+                  fontSize: '11px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                  cursor: 'pointer'
+                }}
+                title="Close detailed view"
+              >
+                <X size={12} /> Close View
+              </button>
             </div>
           </div>
 
-          {/* Multiple Disbursements Entry Form */}
-          <div className="panel">
-            <div className="panel-header">
-              <div>
-                <h3 className="panel-title" style={{ fontSize: 'var(--font-size-md)' }}>
-                  Record New Disbursement Tranche(s)
-                </h3>
-                <div className="panel-description">
-                  Add one or more disbursement tranches for this file. Each entry requires an amount and a date.
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={handleAddRow}
-                icon={<Plus size={14} />}
-                disabled={isFullyDisbursed}
-              >
-                Add Disbursement Row
-              </Button>
-            </div>
-
-            {/* Alert when total disbursement exceeds sanction amount */}
-            {isExceedingSanction && (
-              <div
-                className="alert alert-danger"
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '12px',
-                  padding: '14px 16px',
-                  backgroundColor: '#fef2f2',
-                  border: '1px solid #f87171',
-                  borderRadius: '6px',
-                  marginBottom: '16px'
-                }}
-              >
-                <AlertTriangle size={20} style={{ color: '#dc2626', flexShrink: 0, marginTop: '2px' }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: '13px', color: '#991b1b', marginBottom: '4px' }}>
-                    Exceeds Sanctioned Loan Amount Limit!
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#7f1d1d', lineHeight: '1.5' }}>
-                    The addition of disbursement amounts (Existing: <strong>₹{totalDisbursed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong> + New Entries: <strong>₹{newDisbursementsSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong> = <strong>₹{projectedTotalDisbursed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>) exceeds the sanctioned loan amount of <strong>₹{sanctionLoanAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong> by <strong style={{ color: '#b91c1c', fontSize: '13px' }}>₹{excessAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>.
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#991b1b', marginTop: '6px', fontWeight: 600 }}>
-                    Maximum allowable remaining disbursement for this file is <u>₹{remainingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</u>. Please reduce the entered tranche amount(s) to enable saving.
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Fully Disbursed Notice */}
-            {isFullyDisbursed && !isExceedingSanction && (
+          {/* ATTACHED SECTION DIRECTLY UNDERNEATH TO ADD DISBURSEMENT AMOUNT & DATE */}
+          <div
+            style={{
+              marginTop: '14px',
+              paddingTop: '14px',
+              borderTop: '1px dashed #cbd5e1',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px'
+            }}
+          >
+            {/* Financial Summary & Visual Progress Bar */}
+            <div
+              style={{
+                backgroundColor: isExceedingSanction ? '#fff1f2' : '#f8fafc',
+                border: `1px solid ${isExceedingSanction ? '#fecdd3' : '#e2e8f0'}`,
+                borderRadius: '6px',
+                padding: '10px 14px'
+              }}
+            >
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
                   gap: '10px',
-                  padding: '12px 16px',
-                  backgroundColor: '#f0fdf4',
-                  border: '1px solid #86efac',
-                  borderRadius: '6px',
-                  marginBottom: '16px',
-                  color: '#166534',
-                  fontSize: '13px'
+                  fontSize: '12px'
                 }}
               >
-                <CheckCircle size={18} style={{ color: '#16a34a', flexShrink: 0 }} />
                 <div>
-                  <strong>Sanction Limit Reached:</strong> This file is already 100% disbursed (<strong>₹{totalDisbursed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong> of ₹{sanctionLoanAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}). Remaining allowable disbursement is <strong>₹0.00</strong>.
+                  <span style={{ color: '#64748b' }}>Total Sanctioned:</span>{' '}
+                  <strong style={{ color: '#0f172a' }}>
+                    ₹{sanctionLoanAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </strong>
+                </div>
+
+                <div style={{ color: '#cbd5e1' }}>•</div>
+
+                <div>
+                  <span style={{ color: '#64748b' }}>Already Disbursed:</span>{' '}
+                  <strong style={{ color: '#0f172a' }}>
+                    ₹{totalDisbursed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </strong>{' '}
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>
+                    ({((totalDisbursed / (sanctionLoanAmount || 1)) * 100).toFixed(1)}%)
+                  </span>
+                </div>
+
+                <div style={{ color: '#cbd5e1' }}>•</div>
+
+                <div>
+                  <span style={{ color: '#64748b' }}>New Tranche Entries:</span>{' '}
+                  <strong style={{ color: isExceedingSanction ? '#dc2626' : '#2563eb' }}>
+                    ₹{newDisbursementsSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </strong>
+                </div>
+
+                <div style={{ color: '#cbd5e1' }}>•</div>
+
+                <div>
+                  <span style={{ color: '#64748b' }}>Remaining Balance:</span>{' '}
+                  <strong
+                    style={{
+                      color:
+                        remainingBalance - newDisbursementsSum > 0
+                          ? '#b45309'
+                          : isExceedingSanction
+                          ? '#dc2626'
+                          : '#16a34a'
+                    }}
+                  >
+                    ₹{Math.max(0, remainingBalance - newDisbursementsSum).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div
+                style={{
+                  width: '100%',
+                  height: '6px',
+                  backgroundColor: '#e2e8f0',
+                  borderRadius: '3px',
+                  overflow: 'hidden',
+                  marginTop: '8px'
+                }}
+              >
+                <div
+                  style={{
+                    width: `${Math.min(100, (projectedTotalDisbursed / (sanctionLoanAmount || 1)) * 100)}%`,
+                    height: '100%',
+                    backgroundColor: isExceedingSanction
+                      ? '#dc2626'
+                      : isFullyDisbursed
+                      ? '#16a34a'
+                      : '#2563eb',
+                    transition: 'width 0.3s ease'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* PREVIOUS DISBURSEMENTS (Shown when 1 or more previous disbursements exist) */}
+            {existingDisbursements.length > 0 && (
+              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '12px 14px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '8px',
+                    flexWrap: 'wrap',
+                    gap: '8px'
+                  }}
+                >
+                  <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Recorded Previous Disbursements ({existingDisbursements.length} Tranche{existingDisbursements.length === 1 ? '' : 's'})
+                  </div>
+                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                    Total Disbursed: <strong style={{ color: '#0f172a' }}>₹{totalDisbursed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong> of ₹{sanctionLoanAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                <div className="table-container" style={{ margin: 0, border: '1px solid #e2e8f0', borderRadius: '4px' }}>
+                  <table className="data-table" style={{ fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f8fafc' }}>
+                        <th style={{ padding: '6px 12px', fontSize: '11px', width: '20%' }}>Tranche #</th>
+                        <th style={{ padding: '6px 12px', fontSize: '11px', width: '25%' }}>Disbursement Date</th>
+                        <th style={{ padding: '6px 12px', fontSize: '11px', textAlign: 'right', width: '30%' }}>Disbursed Amount (₹)</th>
+                        <th style={{ padding: '6px 12px', fontSize: '11px', width: '25%' }}>Recorded Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {existingDisbursements.map((d, idx) => (
+                        <tr key={d.id || idx}>
+                          <td style={{ padding: '6px 12px', fontWeight: 600 }}>Tranche {idx + 1}</td>
+                          <td style={{ padding: '6px 12px' }} className="num-tabular">{d.disbursement_date}</td>
+                          <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 700, color: '#0f172a' }} className="table-cell-num">
+                            ₹{Number(d.disbursement_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '6px 12px', fontSize: '11px', color: '#64748b' }}>
+                            {d.created_at ? d.created_at.split('T')[0] : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
 
-            {/* Real-time Calculation Summary Bar */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '10px 14px',
-                backgroundColor: isExceedingSanction ? '#fff1f2' : 'var(--color-surface-subtle)',
-                borderRadius: '6px',
-                border: `1px solid ${isExceedingSanction ? '#fecdd3' : 'var(--color-border)'}`,
-                fontSize: '12px',
-                marginBottom: '16px',
-                flexWrap: 'wrap',
-                gap: '8px'
-              }}
-            >
-              <div>
-                Sanction Amount: <strong className="num-tabular">₹{sanctionLoanAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
-              </div>
-              <div style={{ color: 'var(--color-text-secondary)' }}>•</div>
-              <div>
-                Already Disbursed: <strong className="num-tabular">₹{totalDisbursed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
-              </div>
-              <div style={{ color: 'var(--color-text-secondary)' }}>•</div>
-              <div>
-                New Tranches: <strong className="num-tabular" style={{ color: isExceedingSanction ? '#dc2626' : 'var(--color-text-primary)' }}>₹{newDisbursementsSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
-              </div>
-              <div style={{ color: 'var(--color-text-secondary)' }}>•</div>
-              <div>
-                Projected Total: <strong className="num-tabular" style={{ color: isExceedingSanction ? '#dc2626' : 'var(--color-action-primary)' }}>₹{projectedTotalDisbursed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
-              </div>
-              <div style={{ color: 'var(--color-text-secondary)' }}>•</div>
-              <div>
-                {isExceedingSanction ? (
-                  <span style={{ color: '#dc2626', fontWeight: 700 }} className="num-tabular">
-                    Exceeds Limit by ₹{excessAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            {/* ADD NEW DISBURSEMENT AMOUNT & DATE FORM */}
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '12px 14px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '10px',
+                  flexWrap: 'wrap',
+                  gap: '8px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Add New Disbursement
+                  </div>
+                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                    (Maximum allowable: <strong style={{ color: remainingBalance > 0 ? '#0f172a' : '#16a34a' }}>₹{remainingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>)
                   </span>
-                ) : (
-                  <span style={{ color: remainingBalance - newDisbursementsSum > 0 ? '#b45309' : 'var(--color-success)', fontWeight: 600 }} className="num-tabular">
-                    Remaining: ₹{Math.max(0, remainingBalance - newDisbursementsSum).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </span>
+                </div>
+
+                {!isFullyDisbursed && (
+                  <button
+                    type="button"
+                    onClick={handleAddRow}
+                    className="inline-add-bank-btn"
+                    style={{ height: '28px', fontSize: '11px', padding: '0 10px' }}
+                    title="Add another tranche row"
+                  >
+                    <Plus size={12} /> Add Tranche Row
+                  </button>
                 )}
               </div>
-            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {rows.map((row, index) => {
-                const rowAmt = parseFloat(row.amount);
-                const isRowExcessive = !isNaN(rowAmt) && rowAmt > remainingBalance;
-                return (
-                  <div
-                    key={row.id}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '80px minmax(0, 1fr) minmax(0, 1fr) 48px',
-                      gap: '12px',
-                      alignItems: 'flex-start',
-                      padding: '12px',
-                      backgroundColor: isRowExcessive ? '#fff5f5' : 'var(--color-surface-subtle)',
-                      borderRadius: 'var(--radius-sm)',
-                      border: `1px solid ${isRowExcessive ? '#fca5a5' : 'var(--color-border)'}`
-                    }}
-                  >
-                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, paddingTop: '10px' }}>
-                      #{index + 1}
-                    </div>
-
-                    <div>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        label="Disbursement Loan Amount (₹)"
-                        required
-                        placeholder="e.g. 1500000"
-                        value={row.amount}
-                        onChange={e => handleRowChange(row.id, 'amount', e.target.value)}
-                        error={isRowExcessive ? `Exceeds max available remaining ₹${remainingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : undefined}
-                      />
-                    </div>
-
-                    <div>
-                      <Input
-                        type="date"
-                        label="Disbursement Date"
-                        required
-                        value={row.date}
-                        onChange={e => handleRowChange(row.id, 'date', e.target.value)}
-                      />
-                    </div>
-
-                    <div style={{ paddingTop: '24px' }}>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="md"
-                        className="btn-icon-only"
-                        onClick={() => handleRemoveRow(row.id)}
-                        aria-label="Remove row"
-                        icon={<Trash2 size={16} color="var(--color-danger)" />}
-                      />
-                    </div>
+              {/* Limit Exceeded Alert */}
+              {isExceedingSanction && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #f87171',
+                    borderRadius: '6px',
+                    marginBottom: '10px',
+                    color: '#991b1b',
+                    fontSize: '12px'
+                  }}
+                >
+                  <AlertTriangle size={18} style={{ color: '#dc2626', flexShrink: 0, marginTop: '1px' }} />
+                  <div style={{ lineHeight: 1.4 }}>
+                    <strong>Cannot save: Exceeds Total Sanctioned Amount!</strong> The total disbursement amount (Existing: ₹{totalDisbursed.toLocaleString('en-IN', { minimumFractionDigits: 2 })} + New: ₹{newDisbursementsSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })} = <strong>₹{projectedTotalDisbursed.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>) exceeds the total sanctioned limit of <strong>₹{sanctionLoanAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong> by <strong style={{ color: '#b91c1c' }}>₹{excessAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>. Maximum allowable remaining disbursement is <strong>₹{remainingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>.
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              )}
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '20px', flexWrap: 'wrap', gap: '12px' }}>
-              <div style={{ fontSize: '12px', color: isExceedingSanction ? '#dc2626' : 'var(--color-text-secondary)', fontWeight: isExceedingSanction ? 600 : 400 }}>
-                {isExceedingSanction
-                  ? `Cannot save: Total disbursements exceed sanctioned loan limit by ₹${excessAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}.`
-                  : isFullyDisbursed
-                  ? 'File is already fully disbursed.'
-                  : `Allowable limit remaining: ₹${remainingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}.`}
+              {/* Fully Disbursed Notice */}
+              {isFullyDisbursed && !isExceedingSanction && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 12px',
+                    backgroundColor: '#f0fdf4',
+                    border: '1px solid #86efac',
+                    borderRadius: '6px',
+                    marginBottom: '10px',
+                    color: '#166534',
+                    fontSize: '12px'
+                  }}
+                >
+                  <CheckCircle size={16} style={{ color: '#16a34a', flexShrink: 0 }} />
+                  <div>
+                    <strong>Sanction Limit Reached:</strong> This file is 100% disbursed (₹{totalDisbursed.toLocaleString('en-IN', { minimumFractionDigits: 2 })} of ₹{sanctionLoanAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}). All sanctioned funds have been disbursed.
+                  </div>
+                </div>
+              )}
+
+              {/* Entry Rows for Amount and Date */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {rows.map((row, index) => {
+                  const rowAmt = parseFloat(row.amount);
+                  const isRowExcessive = !isNaN(rowAmt) && rowAmt > remainingBalance;
+                  return (
+                    <div
+                      key={row.id}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '40px minmax(0, 1.4fr) minmax(0, 1fr) 36px',
+                        gap: '10px',
+                        alignItems: 'center',
+                        padding: '8px 10px',
+                        backgroundColor: isRowExcessive ? '#fff5f5' : '#f8fafc',
+                        border: `1px solid ${isRowExcessive ? '#fca5a5' : '#e2e8f0'}`,
+                        borderRadius: '6px'
+                      }}
+                    >
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>
+                        #{index + 1}
+                      </div>
+
+                      <div>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Disbursement Amount (₹) *"
+                          value={row.amount}
+                          onChange={e => handleRowChange(row.id, 'amount', e.target.value)}
+                          className="inline-field-input"
+                          style={{
+                            borderColor: isRowExcessive ? '#ef4444' : undefined,
+                            fontWeight: 600
+                          }}
+                          disabled={isFullyDisbursed}
+                        />
+                        {isRowExcessive && (
+                          <div style={{ fontSize: '10px', color: '#dc2626', marginTop: '2px' }}>
+                            Exceeds allowable remaining ₹{remainingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <input
+                          type="date"
+                          value={row.date}
+                          onChange={e => handleRowChange(row.id, 'date', e.target.value)}
+                          className="inline-field-input"
+                          disabled={isFullyDisbursed}
+                        />
+                      </div>
+
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRow(row.id)}
+                          className="inline-btn-cancel"
+                          style={{ width: '32px', height: '32px', padding: 0, color: '#dc2626' }}
+                          title="Remove row"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
-              <Button
-                variant="primary"
-                onClick={handleSaveDisbursements}
-                isLoading={isSaving}
-                disabled={isExceedingSanction || isFullyDisbursed || validRows.length === 0}
-                icon={<CheckCircle size={16} />}
-                title={
-                  isExceedingSanction
-                    ? `Cannot save: Total disbursements exceed sanctioned loan amount by ₹${excessAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-                    : isFullyDisbursed
-                    ? 'Loan amount already fully disbursed'
-                    : validRows.length === 0
-                    ? 'Please enter valid disbursement amounts'
-                    : 'Save Disbursement Entries'
-                }
+              {/* Actions Footer */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: '12px',
+                  flexWrap: 'wrap',
+                  gap: '10px'
+                }}
               >
-                Save Disbursement Entries
-              </Button>
+                <div
+                  style={{
+                    fontSize: '11.5px',
+                    color: isExceedingSanction ? '#dc2626' : '#64748b',
+                    fontWeight: isExceedingSanction ? 600 : 400
+                  }}
+                >
+                  {isExceedingSanction
+                    ? `Cannot save: Exceeds limit by ₹${excessAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                    : isFullyDisbursed
+                    ? 'All sanction funds have been disbursed.'
+                    : `Remaining allowable after new entry: ₹${Math.max(0, remainingBalance - newDisbursementsSum).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveDisbursements}
+                  disabled={isSaving || isExceedingSanction || isFullyDisbursed || validRows.length === 0}
+                  className="inline-btn-save"
+                  style={{
+                    padding: '0 18px',
+                    height: '34px',
+                    fontSize: '12px',
+                    borderRadius: '6px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <CheckCircle size={14} />
+                  {isSaving ? 'Saving...' : 'Save Disbursements'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* DISBURSED ACCOUNTS DATA TABLE (6 COLUMNS, ENTIRE ROW CLICKABLE) */}
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Disbursed Accounts
+            </div>
+            <span className="badge badge-neutral" style={{ fontSize: '11px' }}>
+              {filteredDisbursements.length} account{filteredDisbursements.length === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          <div style={{ fontSize: '12px', color: '#64748b' }}>
+            Click on any row to open the horizontal file details and manage disbursement tranches.
+          </div>
+        </div>
+
+        {filteredDisbursements.length === 0 ? (
+          <div
+            style={{
+              padding: '24px',
+              textAlign: 'center',
+              backgroundColor: 'var(--color-surface-subtle)',
+              borderRadius: '6px',
+              border: '1px dashed var(--color-border)',
+              color: 'var(--color-text-secondary)',
+              fontSize: '13px'
+            }}
+          >
+            {isLoadingPrevious
+              ? 'Loading disbursement records...'
+              : search
+              ? 'No disbursement records match your search query.'
+              : 'No disbursed accounts recorded yet in the system.'}
+          </div>
+        ) : (
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', width: '14%' }}>File ID</th>
+                  <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', width: '28%' }}>Client / Company & GSTIN</th>
+                  <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', width: '20%' }}>Bank & Bank Manager</th>
+                  <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right', width: '13%' }}>Sanction Amount (₹)</th>
+                  <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right', width: '13%' }}>Total Disbursed (₹)</th>
+                  <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'right', width: '12%' }}>Remaining Amount (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDisbursements.map((f) => {
+                  const isCurrentFile = fileData?.id === f.file_id;
+                  return (
+                    <tr
+                      key={f.file_id}
+                      className={`clickable-row ${isCurrentFile ? 'selected-row' : ''}`}
+                      onClick={() => {
+                        if (fileData?.id === f.file_id) {
+                          setFileData(null);
+                          setLookupFileId('');
+                        } else {
+                          setLookupFileId(f.file_id);
+                          fetchDisbursementsForFile(f.file_id);
+                          window.scrollTo({ top: 120, behavior: 'smooth' });
+                        }
+                      }}
+                      style={{
+                        cursor: 'pointer',
+                        backgroundColor: isCurrentFile ? '#eff6ff' : undefined,
+                        borderLeft: isCurrentFile ? '3px solid #2563eb' : undefined,
+                        transition: 'background-color 0.15s ease'
+                      }}
+                      title={`Click to open horizontal file details for ${f.file_id}`}
+                    >
+                      {/* 1. File ID */}
+                      <td>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (fileData?.id === f.file_id) {
+                              setFileData(null);
+                              setLookupFileId('');
+                            } else {
+                              setLookupFileId(f.file_id);
+                              fetchDisbursementsForFile(f.file_id);
+                              window.scrollTo({ top: 120, behavior: 'smooth' });
+                            }
+                          }}
+                          style={{
+                            fontFamily: 'monospace',
+                            fontWeight: 600,
+                            fontSize: '12px',
+                            color: isCurrentFile ? '#1d4ed8' : '#1e293b',
+                            backgroundColor: isCurrentFile ? '#dbeafe' : '#f1f5f9',
+                            border: `1px solid ${isCurrentFile ? '#93c5fd' : '#e2e8f0'}`,
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            cursor: 'pointer'
+                          }}
+                          title={`Click to view ${f.file_id}`}
+                        >
+                          {f.file_id}
+                        </button>
+                      </td>
+
+                      {/* 2. Client Company Name and Client Name and GSTIN */}
+                      <td>
+                        <div style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>
+                          {f.company_name || '—'}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                          {f.client_name || ''}
+                        </div>
+                        {f.gst_no && f.gst_no !== 'URP' ? (
+                          <div style={{ fontSize: '11px', fontFamily: 'monospace', color: '#475569', marginTop: '2px' }}>
+                            GSTIN: <span style={{ fontWeight: 600, color: '#1e293b' }}>{f.gst_no}</span>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                            GSTIN: Unregistered (URP)
+                          </div>
+                        )}
+                      </td>
+
+                      {/* 3. Bank and Bank Manager */}
+                      <td>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>
+                          {f.bank_name || '—'}
+                        </div>
+                        {f.bank_manager_name ? (
+                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                            Mgr: <span style={{ color: '#334155' }}>{f.bank_manager_name}</span>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                            Mgr: —
+                          </div>
+                        )}
+                      </td>
+
+                      {/* 4. Sanction Amount */}
+                      <td className="table-cell-num" style={{ fontWeight: 600 }}>
+                        ₹{Number(f.sanction_loan_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+
+                      {/* 5. Total Disbursed */}
+                      <td className="table-cell-num" style={{ fontWeight: 700, color: '#111827' }}>
+                        ₹{Number(f.total_disbursed_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+
+                      {/* 6. Remaining Amount */}
+                      <td
+                        className="table-cell-num"
+                        style={{
+                          color: f.remaining_amount > 0 ? '#b45309' : '#16a34a',
+                          fontWeight: 600
+                        }}
+                      >
+                        ₹{Number(f.remaining_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

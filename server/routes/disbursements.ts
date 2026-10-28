@@ -12,27 +12,46 @@ router.get('/lookup/:fileId', (req, res) => {
       SELECT 
         f.id,
         f.login_date,
-        f.status,
+        f.code,
         f.source,
+        f.status,
+        f.bank_manager_name,
         f.sanction_loan_amount,
+        f.firm_id,
+        COALESCE(fm.firm_name, 'Mavin Credits') as firm_name,
         c.company_name,
         c.client_name,
         c.client_email,
+        c.client_phone,
         c.gst_no,
+        p.id as product_id,
         p.name as product_name,
         p.acronym as product_acronym,
+        b.id as bank_id,
         b.bank_name,
-        b.bank_gst_no
+        b.bank_gst_no,
+        s.id as sales_member_id,
+        s.name as sales_member_name
       FROM files f
       JOIN clients c ON f.client_id = c.id
       JOIN products p ON f.product_id = p.id
       JOIN banks b ON f.bank_id = b.id
+      LEFT JOIN sales_members s ON f.sales_member_id = s.id
+      LEFT JOIN firms fm ON f.firm_id = fm.id
       WHERE f.id = ?
     `).get(fileId) as any;
 
     if (!file) {
       return res.status(404).json({ error: `File ID "${fileId}" not found in system records.` });
     }
+
+    const fileBanks = db.prepare(`
+      SELECT fb.id, fb.bank_id, fb.bank_manager_name, fb.sanction_loan_amount, b.bank_name, b.bank_gst_no
+      FROM file_banks fb
+      JOIN banks b ON fb.bank_id = b.id
+      WHERE fb.file_id = ?
+    `).all(fileId);
+    file.banks = fileBanks;
 
     // Status check for disbursement eligibility
     const disbursableStatuses = ['Disburse', 'Sanction', 'Approved'];
