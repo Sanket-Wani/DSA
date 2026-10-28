@@ -1,10 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import {
-  FileText,
-  Banknote,
-  BookOpen,
-  Check
-} from 'lucide-react';
 import { apiRequest } from '../api/client.js';
 import { FileLoggedIn } from './FileLoggedIn.js';
 import { Disbursements } from './Disbursements.js';
@@ -144,31 +138,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
               </>
             )}
 
-            <div className="dashboard-card-top">
-              <div className="dashboard-card-icon-badge">
-                <FileText size={16} strokeWidth={1.8} />
-              </div>
-              <span className={`dashboard-card-stage-pill ${selectedCard === 'files' ? 'active' : ''}`}>
-                {selectedCard === 'files' ? 'Active' : 'Stage 1'}
-              </span>
-            </div>
-
-            <div>
-              <div className="dashboard-card-title">File Logged-in</div>
-              <div className="dashboard-card-desc">
-                Register new loan files, manage client details, and bank sanctions.
-              </div>
-            </div>
+            <div className="dashboard-card-title">File Logged-in</div>
 
             <div className="dashboard-card-metrics">
               <span className="dashboard-metric-badge">
                 {metrics.totalFiles} Total Files
               </span>
-            </div>
-
-            <div className="dashboard-card-status-line">
-              <span>{selectedCard === 'files' ? 'Showing data below' : 'Click to view file records'}</span>
-              {selectedCard === 'files' && <Check size={14} strokeWidth={2.5} />}
             </div>
           </div>
 
@@ -195,21 +170,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
               </>
             )}
 
-            <div className="dashboard-card-top">
-              <div className="dashboard-card-icon-badge">
-                <Banknote size={16} strokeWidth={1.8} />
-              </div>
-              <span className={`dashboard-card-stage-pill ${selectedCard === 'disbursements' ? 'active' : ''}`}>
-                {selectedCard === 'disbursements' ? 'Active' : 'Stage 2'}
-              </span>
-            </div>
-
-            <div>
-              <div className="dashboard-card-title">Disbursements</div>
-              <div className="dashboard-card-desc">
-                Record single or multi-tranche loan disbursements against client files.
-              </div>
-            </div>
+            <div className="dashboard-card-title">Disbursements</div>
 
             <div className="dashboard-card-metrics">
               <span className="dashboard-metric-badge">
@@ -220,11 +181,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
                   ₹{metrics.totalDisbursedAmount.toLocaleString('en-IN')}
                 </span>
               )}
-            </div>
-
-            <div className="dashboard-card-status-line">
-              <span>{selectedCard === 'disbursements' ? 'Showing data below' : 'Click to view disbursements'}</span>
-              {selectedCard === 'disbursements' && <Check size={14} strokeWidth={2.5} />}
             </div>
           </div>
 
@@ -250,31 +206,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialCard = null }) => {
               </>
             )}
 
-            <div className="dashboard-card-top">
-              <div className="dashboard-card-icon-badge">
-                <BookOpen size={16} strokeWidth={1.8} />
-              </div>
-              <span className={`dashboard-card-stage-pill ${selectedCard === 'accounts' ? 'active' : ''}`}>
-                {selectedCard === 'accounts' ? 'Active' : 'Stage 3'}
-              </span>
-            </div>
-
-            <div>
-              <div className="dashboard-card-title">Accounts</div>
-              <div className="dashboard-card-desc">
-                Collections ledger tracking received taxable value, GST, and TDS recovery.
-              </div>
-            </div>
+            <div className="dashboard-card-title">Accounts</div>
 
             <div className="dashboard-card-metrics">
               <span className="dashboard-metric-badge">
                 {metrics.accountsCount} Invoices in Ledger
               </span>
-            </div>
-
-            <div className="dashboard-card-status-line">
-              <span>{selectedCard === 'accounts' ? 'Showing data below' : 'Click to view accounts ledger'}</span>
-              {selectedCard === 'accounts' && <Check size={14} strokeWidth={2.5} />}
             </div>
           </div>
 
