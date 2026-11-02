@@ -406,59 +406,6 @@ export const Banking: React.FC = () => {
         </div>
       </div>
 
-      {/* Selected Account Info Bar */}
-      {selectedAccount && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 14px',
-            backgroundColor: '#f0f9ff',
-            border: '1px solid #bae6fd',
-            borderRadius: '6px',
-            marginBottom: '14px',
-            fontSize: '12.5px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontWeight: 600, color: '#0369a1' }}>Selected Account:</span>
-            <span style={{ fontWeight: 600, color: '#0f172a' }}>{selectedAccount.bank_name}</span>
-            <span style={{ color: '#64748b' }}>({selectedAccount.account_number})</span>
-            <Badge
-              label={selectedAccount.account_type === 'CA' ? 'Current' : 'Saving'}
-              variant={selectedAccount.account_type === 'CA' ? 'info' : 'neutral'}
-              className="badge-compact"
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setViewMode('transactions')}
-              icon={<Eye size={13} />}
-            >
-              See Transactions
-            </Button>
-            <button
-              type="button"
-              onClick={() => setSelectedAccount(null)}
-              style={{
-                border: 'none',
-                background: 'none',
-                color: '#64748b',
-                cursor: 'pointer',
-                fontSize: '12px',
-                padding: '2px 6px'
-              }}
-              title="Deselect account"
-            >
-              Deselect
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Success Banner */}
       {successMsg && (
         <div className="alert alert-success" style={{ marginBottom: '16px' }}>
@@ -765,8 +712,12 @@ export const Banking: React.FC = () => {
                   <tr
                     key={acc.id}
                     onClick={() => handleRowClick(acc)}
+                    onDoubleClick={() => {
+                      setSelectedAccount(acc);
+                      setViewMode('transactions');
+                    }}
                     className={isSelected ? 'banking-row-selected' : ''}
-                    title="Click row to select account for Statement Upload or Transactions view"
+                    title="Click row to select account for Statement Upload (double-click to view transactions)"
                   >
                     {/* Fixed Column 1: Bank Name */}
                     <td className="col-sticky-1">
