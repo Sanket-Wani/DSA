@@ -55,6 +55,7 @@ export const Banking: React.FC = () => {
 
   // Six Form Fields
   const [bankName, setBankName] = useState('');
+  const [customBankName, setCustomBankName] = useState('');
   const [branch, setBranch] = useState('');
   const [accountType, setAccountType] = useState<BankingAccountType>('CA');
   const [ifscCode, setIfscCode] = useState('');
@@ -103,6 +104,7 @@ export const Banking: React.FC = () => {
   // Form Reset
   const resetForm = () => {
     setBankName('');
+    setCustomBankName('');
     setBranch('');
     setAccountType('CA');
     setIfscCode('');
@@ -126,8 +128,9 @@ export const Banking: React.FC = () => {
     setFormError(null);
 
     // 1. Validations
-    if (!bankName.trim()) {
-      setFormError('Please enter Bank Name.');
+    const resolvedBankName = bankName === 'Other' ? customBankName.trim() : bankName.trim();
+    if (!resolvedBankName) {
+      setFormError(bankName === 'Other' ? 'Please specify Bank Name.' : 'Please select Bank Name.');
       return;
     }
     if (!branch.trim()) {
@@ -160,7 +163,7 @@ export const Banking: React.FC = () => {
       const res = await apiRequest<{ account: BankingAccount; message: string }>('/api/banking/accounts', {
         method: 'POST',
         body: JSON.stringify({
-          bank_name: bankName.trim(),
+          bank_name: resolvedBankName,
           branch: branch.trim(),
           account_type: accountType,
           ifsc_code: cleanIfsc,
@@ -550,15 +553,58 @@ export const Banking: React.FC = () => {
               <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569' }}>
                 Bank Name <span style={{ color: '#dc2626' }}>*</span>
               </label>
-              <input
-                type="text"
-                placeholder="e.g. HDFC Bank"
+              <select
                 value={bankName}
-                onChange={e => setBankName(e.target.value)}
-                className="inline-field-input"
+                onChange={e => {
+                  setBankName(e.target.value);
+                  if (e.target.value !== 'Other') {
+                    setCustomBankName('');
+                  }
+                }}
+                className="inline-field-select"
                 title="Bank Name"
                 autoFocus
-              />
+              >
+                <option value="">-- Select Bank --</option>
+                <optgroup label="Supported Statement Banks">
+                  <option value="Axis Bank">Axis Bank</option>
+                  <option value="Bank of Baroda">Bank of Baroda</option>
+                  <option value="HDFC Bank">HDFC Bank</option>
+                  <option value="ICICI Bank">ICICI Bank</option>
+                </optgroup>
+                <optgroup label="Other Commercial & PSU Banks">
+                  <option value="AU Small Finance Bank">AU Small Finance Bank</option>
+                  <option value="Bandhan Bank">Bandhan Bank</option>
+                  <option value="Bank of India">Bank of India</option>
+                  <option value="Canara Bank">Canara Bank</option>
+                  <option value="Central Bank of India">Central Bank of India</option>
+                  <option value="Federal Bank">Federal Bank</option>
+                  <option value="IDFC FIRST Bank">IDFC FIRST Bank</option>
+                  <option value="Indian Bank">Indian Bank</option>
+                  <option value="Indian Overseas Bank">Indian Overseas Bank</option>
+                  <option value="IndusInd Bank">IndusInd Bank</option>
+                  <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
+                  <option value="Punjab National Bank">Punjab National Bank</option>
+                  <option value="RBL Bank">RBL Bank</option>
+                  <option value="Standard Chartered Bank">Standard Chartered Bank</option>
+                  <option value="State Bank of India">State Bank of India</option>
+                  <option value="Union Bank of India">Union Bank of India</option>
+                  <option value="Yes Bank">Yes Bank</option>
+                  <option value="Other">Other Bank...</option>
+                </optgroup>
+              </select>
+              {bankName === 'Other' && (
+                <input
+                  type="text"
+                  placeholder="Specify Bank Name"
+                  value={customBankName}
+                  onChange={e => setCustomBankName(e.target.value)}
+                  className="inline-field-input"
+                  style={{ marginTop: '4px' }}
+                  title="Specify Custom Bank Name"
+                  autoFocus
+                />
+              )}
             </div>
 
             <div className="form-card-box">

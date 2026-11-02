@@ -189,3 +189,4 @@ runBankingStatementTests().catch(err => {
   console.error('Banking Statement Test Suite Failed:', err);
   process.exit(1);
 });
+

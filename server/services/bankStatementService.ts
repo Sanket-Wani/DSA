@@ -475,3 +475,4 @@ export function cancelPendingStatement(accountId: number): boolean {
   const res = db.prepare("UPDATE banking_pending_statements SET status = 'cancelled' WHERE account_id = ? AND status = 'pending_gap'").run(accountId);
   return res.changes > 0;
 }
+
