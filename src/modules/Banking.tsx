@@ -349,8 +349,8 @@ export const Banking: React.FC = () => {
                 className="inline-field-select"
                 title="Account Type"
               >
-                <option value="CA">CA (Current Account)</option>
-                <option value="Saving">Saving (Savings Account)</option>
+                <option value="CA">Current</option>
+                <option value="Saving">Saving</option>
               </select>
             </div>
 
@@ -493,7 +493,7 @@ export const Banking: React.FC = () => {
                 <tr key={acc.id}>
                   {/* Fixed Column 1: Bank Name + Bank Branch */}
                   <td className="col-sticky-1">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.25 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', lineHeight: 1.35 }}>
                       <span
                         style={{
                           fontWeight: 600,
@@ -525,7 +525,7 @@ export const Banking: React.FC = () => {
                   {/* Fixed Column 2: Account Type */}
                   <td className="col-sticky-2">
                     <Badge
-                      label={acc.account_type === 'CA' ? 'CA' : 'Saving'}
+                      label={acc.account_type === 'CA' ? 'Current' : 'Saving'}
                       variant={acc.account_type === 'CA' ? 'info' : 'neutral'}
                       className="badge-compact"
                     />
@@ -533,7 +533,7 @@ export const Banking: React.FC = () => {
 
                   {/* Fixed Column 3: Account Number & IFSC Code */}
                   <td className="col-sticky-3">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.25 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', lineHeight: 1.35 }}>
                       <span
                         style={{
                           fontSize: '12.5px',
@@ -561,14 +561,14 @@ export const Banking: React.FC = () => {
                   <td className="col-sticky-4">
                     <span
                       style={{
-                        fontSize: '12px',
+                        fontSize: '12.5px',
                         fontWeight: 500,
                         color: '#0f172a',
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical',
                         overflow: 'hidden',
-                        lineHeight: 1.3
+                        lineHeight: 1.35
                       }}
                       title={acc.account_holder_name}
                     >

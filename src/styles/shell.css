@@ -714,13 +714,13 @@
   font-size: 11px;
   font-weight: var(--font-weight-semibold);
   letter-spacing: 0.02em;
-  padding: 8px 10px;
+  padding: 12px 10px;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
 }
 
 .banking-table td {
-  padding: 8px 10px;
+  padding: 14px 10px;
   border-bottom: 1px solid var(--color-border);
   font-size: 12px;
   color: var(--color-text-primary);
@@ -751,9 +751,9 @@
 .banking-table td.col-sticky-2 {
   position: sticky;
   left: 145px;
-  width: 70px;
-  min-width: 70px;
-  max-width: 70px;
+  width: 110px;
+  min-width: 110px;
+  max-width: 110px;
   z-index: 2;
   text-align: center;
   background-color: var(--color-surface);
@@ -762,7 +762,7 @@
 .banking-table th.col-sticky-3,
 .banking-table td.col-sticky-3 {
   position: sticky;
-  left: 215px;
+  left: 255px;
   width: 140px;
   min-width: 140px;
   max-width: 140px;
@@ -773,10 +773,10 @@
 .banking-table th.col-sticky-4,
 .banking-table td.col-sticky-4 {
   position: sticky;
-  left: 355px;
-  width: 155px;
-  min-width: 155px;
-  max-width: 155px;
+  left: 395px;
+  width: 160px;
+  min-width: 160px;
+  max-width: 160px;
   z-index: 2;
   background-color: var(--color-surface);
   border-right: 2px solid var(--color-border-strong);
@@ -807,8 +807,15 @@
   min-width: 68px;
   max-width: 72px;
   text-align: center;
-  padding: 6px 2px;
   font-size: 11px;
+}
+
+.banking-table th.col-month {
+  padding: 12px 2px;
+}
+
+.banking-table td.col-month {
+  padding: 14px 2px;
 }
 
 .month-status-cell-unuploaded {
@@ -831,17 +838,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
   pointer-events: none;
   user-select: none;
 }
 
 .badge-compact {
-  padding: 2px 6px;
-  font-size: 10.5px;
-  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  gap: 5px;
 }
 .badge-compact .badge-dot {
   width: 5px;
