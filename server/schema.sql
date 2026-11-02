@@ -194,6 +194,14 @@ CREATE TABLE IF NOT EXISTS accounts_ledger (
 
 CREATE INDEX IF NOT EXISTS idx_accounts_invoice ON accounts_ledger(invoice_id);
 
+CREATE TABLE IF NOT EXISTS banking_account_holders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT UNIQUE NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_banking_account_holders_name ON banking_account_holders(name);
+
 CREATE TABLE IF NOT EXISTS banking_accounts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   bank_name TEXT NOT NULL,

@@ -313,7 +313,19 @@ export function runSeed() {
       monthly_statuses = excluded.monthly_statuses
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS banking_account_holders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      created_at TEXT NOT NULL
+    );
+  `);
+  const insertHolder = db.prepare(`
+    INSERT OR IGNORE INTO banking_account_holders (name, created_at) VALUES (?, ?)
+  `);
+
   dummyAccounts.forEach(acc => {
+    insertHolder.run(acc.account_holder_name, now);
     insertBankAcc.run(
       acc.bank_name,
       acc.branch,

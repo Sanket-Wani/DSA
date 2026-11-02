@@ -222,6 +222,12 @@ export interface AccountsRecord {
 
 export type BankingAccountType = 'CA' | 'Saving';
 
+export interface BankingAccountHolder {
+  id: number;
+  name: string;
+  created_at: string;
+}
+
 export type MonthlyStatus = 'complete' | 'partially_complete' | 'fully_incomplete' | 'unuploaded';
 
 export interface BankingAccount {

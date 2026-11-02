@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Check, AlertCircle, FileText, Download } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Check, AlertCircle, FileText, Download, Pencil } from 'lucide-react';
 import { Button } from '../components/Button.js';
 import { Badge } from '../components/Badge.js';
 import { BankingAccount, BankingTransaction } from '../types/index.js';
@@ -20,6 +20,7 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<Record<number, 'saving' | 'saved' | 'error'>>({});
+  const [editingTxnId, setEditingTxnId] = useState<number | null>(null);
 
   // Debounce timers for autosave
   const debounceTimers = useRef<Record<number, any>>({});
@@ -104,9 +105,19 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
     }
   };
 
-  // Formatter for Indian currency
-  const formatINR = (val: number) => {
-    return '₹' + val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Format date from YYYY-MM-DD to DD-MM-YYYY
+  const formatDisplayDate = (dStr: string) => {
+    if (!dStr) return '';
+    const parts = dStr.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dStr;
+  };
+
+  // Plain numeric formatting with Indian commas (No ₹ symbol)
+  const formatAmount = (val: number) => {
+    return val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   // Total metrics
@@ -140,7 +151,7 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
               />
             </div>
             <div className="page-subtitle" style={{ fontSize: '12px', marginTop: '2px' }}>
-              A/C: <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{account.account_number}</span> | IFSC: <span style={{ fontFamily: 'monospace' }}>{account.ifsc_code}</span> | {account.branch} ({account.account_holder_name})
+              A/C: <span style={{ fontWeight: 600 }}>{account.account_number}</span> | IFSC: <span>{account.ifsc_code}</span> | {account.branch} ({account.account_holder_name})
             </div>
           </div>
         </div>
@@ -173,15 +184,21 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
         </div>
         <div className="summary-pill-card" style={{ padding: '12px 16px', background: '#ffffff', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
           <div style={{ fontSize: '11px', color: '#b91c1c', fontWeight: 600, textTransform: 'uppercase' }}>Total Debits (Outflow)</div>
-          <div style={{ fontSize: '18px', fontWeight: 700, color: '#b91c1c', marginTop: '2px' }}>{formatINR(totalDebits)}</div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: '#b91c1c', marginTop: '2px', fontVariantNumeric: 'tabular-nums' }}>
+            {formatAmount(totalDebits)}
+          </div>
         </div>
         <div className="summary-pill-card" style={{ padding: '12px 16px', background: '#ffffff', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
           <div style={{ fontSize: '11px', color: '#15803d', fontWeight: 600, textTransform: 'uppercase' }}>Total Credits (Inflow)</div>
-          <div style={{ fontSize: '18px', fontWeight: 700, color: '#15803d', marginTop: '2px' }}>{formatINR(totalCredits)}</div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: '#15803d', marginTop: '2px', fontVariantNumeric: 'tabular-nums' }}>
+            {formatAmount(totalCredits)}
+          </div>
         </div>
         <div className="summary-pill-card" style={{ padding: '12px 16px', background: '#ffffff', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
           <div style={{ fontSize: '11px', color: '#0369a1', fontWeight: 600, textTransform: 'uppercase' }}>Latest Running Balance</div>
-          <div style={{ fontSize: '18px', fontWeight: 700, color: '#0369a1', marginTop: '2px' }}>{formatINR(latestBalance)}</div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: '#0369a1', marginTop: '2px', fontVariantNumeric: 'tabular-nums' }}>
+            {formatAmount(latestBalance)}
+          </div>
         </div>
       </div>
 
@@ -194,16 +211,16 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
       )}
 
       {/* Transaction Table */}
-      <div className="banking-table-container" style={{ maxHeight: 'calc(100vh - 270px)', overflowY: 'auto' }}>
-        <table className="banking-table" aria-label="Account Transactions Table">
+      <div className="transaction-table-container" style={{ maxHeight: 'calc(100vh - 270px)', overflowY: 'auto' }}>
+        <table className="transaction-table" aria-label="Account Transactions Table">
           <thead>
             <tr>
-              <th scope="col" style={{ width: '110px', minWidth: '110px' }}>Transaction Date</th>
-              <th scope="col" style={{ width: '380px', minWidth: '300px' }}>Particulars</th>
-              <th scope="col" style={{ width: '130px', minWidth: '120px', textAlign: 'right' }}>Debit</th>
-              <th scope="col" style={{ width: '130px', minWidth: '120px', textAlign: 'right' }}>Credit</th>
-              <th scope="col" style={{ width: '140px', minWidth: '130px', textAlign: 'right' }}>Balance</th>
-              <th scope="col" style={{ width: '260px', minWidth: '220px' }}>Remarks</th>
+              <th scope="col" style={{ width: '100px', minWidth: '100px' }}>Date</th>
+              <th scope="col" style={{ minWidth: '260px' }}>Particulars</th>
+              <th scope="col" style={{ width: '115px', minWidth: '110px', textAlign: 'right' }}>Debit</th>
+              <th scope="col" style={{ width: '115px', minWidth: '110px', textAlign: 'right' }}>Credit</th>
+              <th scope="col" style={{ width: '125px', minWidth: '120px', textAlign: 'right' }}>Balance</th>
+              <th scope="col" style={{ width: '250px', minWidth: '230px' }}>Remarks</th>
             </tr>
           </thead>
           <tbody>
@@ -228,79 +245,136 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
                 </td>
               </tr>
             ) : (
-              transactions.map(t => (
-                <tr key={t.id}>
-                  {/* 1. Transaction Date */}
-                  <td style={{ fontFamily: 'ui-monospace, monospace', fontSize: '12px', fontWeight: 500, color: '#334155' }}>
-                    {t.transaction_date}
-                  </td>
+              transactions.map(t => {
+                const hasRemark = Boolean(t.remarks && t.remarks.trim());
+                const isEditing = editingTxnId === t.id;
 
-                  {/* 2. Particulars */}
-                  <td>
-                    <div
-                      style={{
-                        fontSize: '12px',
-                        color: '#0f172a',
-                        lineHeight: 1.35,
-                        wordBreak: 'break-word'
-                      }}
-                      title={t.particulars}
-                    >
-                      {t.particulars}
-                    </div>
-                  </td>
+                return (
+                  <tr key={t.id}>
+                    {/* 1. Transaction Date (DD-MM-YYYY) */}
+                    <td style={{ fontSize: '12px', color: '#334155', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                      {formatDisplayDate(t.transaction_date)}
+                    </td>
 
-                  {/* 3. Debit */}
-                  <td style={{ textAlign: 'right', fontFamily: 'ui-monospace, monospace', fontSize: '12.5px', color: t.debit > 0 ? '#b91c1c' : '#94a3b8', fontWeight: t.debit > 0 ? 600 : 400 }}>
-                    {t.debit > 0 ? formatINR(t.debit) : '—'}
-                  </td>
-
-                  {/* 4. Credit */}
-                  <td style={{ textAlign: 'right', fontFamily: 'ui-monospace, monospace', fontSize: '12.5px', color: t.credit > 0 ? '#15803d' : '#94a3b8', fontWeight: t.credit > 0 ? 600 : 400 }}>
-                    {t.credit > 0 ? formatINR(t.credit) : '—'}
-                  </td>
-
-                  {/* 5. Balance */}
-                  <td style={{ textAlign: 'right', fontFamily: 'ui-monospace, monospace', fontSize: '12.5px', fontWeight: 600, color: '#0f172a' }}>
-                    {formatINR(t.balance)}
-                  </td>
-
-                  {/* 6. Remarks (Autosaved) */}
-                  <td>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <input
-                        type="text"
-                        value={t.remarks || ''}
-                        onChange={e => handleRemarksChange(t.id, e.target.value)}
-                        onBlur={e => handleRemarksBlur(t.id, e.target.value)}
-                        placeholder="Add remark..."
-                        className="inline-field-input"
+                    {/* 2. Particulars */}
+                    <td>
+                      <div
                         style={{
                           fontSize: '12px',
-                          padding: '4px 28px 4px 8px',
-                          height: '28px',
-                          backgroundColor: '#ffffff'
+                          color: '#0f172a',
+                          lineHeight: 1.35,
+                          wordBreak: 'break-word'
                         }}
-                      />
-                      {saveStatus[t.id] === 'saving' && (
-                        <span style={{ position: 'absolute', right: '6px', fontSize: '10px', color: '#64748b' }}>
-                          <RefreshCw size={12} className="animate-spin" />
-                        </span>
+                        title={t.particulars}
+                      >
+                        {t.particulars}
+                      </div>
+                    </td>
+
+                    {/* 3. Debit (Plain numeric, No ₹ symbol) */}
+                    <td className="txn-amount-num" style={{ color: t.debit > 0 ? '#b91c1c' : '#94a3b8', fontWeight: t.debit > 0 ? 600 : 400 }}>
+                      {t.debit > 0 ? formatAmount(t.debit) : '—'}
+                    </td>
+
+                    {/* 4. Credit (Plain numeric, No ₹ symbol) */}
+                    <td className="txn-amount-num" style={{ color: t.credit > 0 ? '#15803d' : '#94a3b8', fontWeight: t.credit > 0 ? 600 : 400 }}>
+                      {t.credit > 0 ? formatAmount(t.credit) : '—'}
+                    </td>
+
+                    {/* 5. Balance (Plain numeric, No ₹ symbol) */}
+                    <td className="txn-amount-num" style={{ fontWeight: 600, color: '#0f172a' }}>
+                      {formatAmount(t.balance)}
+                    </td>
+
+                    {/* 6. Remarks: State A (Empty: editable) vs State B (Existing: read-only + Edit button) */}
+                    <td>
+                      {!hasRemark || isEditing ? (
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input
+                            type="text"
+                            value={t.remarks || ''}
+                            onChange={e => handleRemarksChange(t.id, e.target.value)}
+                            onBlur={e => {
+                              handleRemarksBlur(t.id, e.target.value);
+                              setEditingTxnId(null);
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                handleRemarksBlur(t.id, t.remarks || '');
+                                setEditingTxnId(null);
+                              } else if (e.key === 'Escape') {
+                                setEditingTxnId(null);
+                              }
+                            }}
+                            placeholder="Add remark..."
+                            className="inline-field-input"
+                            autoFocus={isEditing}
+                            style={{
+                              fontSize: '12px',
+                              padding: '5px 28px 5px 8px',
+                              height: '32px',
+                              width: '100%',
+                              backgroundColor: '#ffffff'
+                            }}
+                          />
+                          {saveStatus[t.id] === 'saving' && (
+                            <span style={{ position: 'absolute', right: '8px', fontSize: '10px', color: '#64748b' }}>
+                              <RefreshCw size={12} className="animate-spin" />
+                            </span>
+                          )}
+                          {saveStatus[t.id] === 'saved' && (
+                            <span style={{ position: 'absolute', right: '8px', color: '#16a34a' }} title="Saved">
+                              <Check size={14} />
+                            </span>
+                          )}
+                          {saveStatus[t.id] === 'error' && (
+                            <span style={{ position: 'absolute', right: '8px', color: '#dc2626' }} title="Failed to save">
+                              <AlertCircle size={14} />
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '8px',
+                            minHeight: '32px',
+                            padding: '2px 0'
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: '12px',
+                              color: '#0f172a',
+                              lineHeight: 1.35,
+                              wordBreak: 'break-word',
+                              flex: 1
+                            }}
+                            title={t.remarks}
+                          >
+                            {t.remarks}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setEditingTxnId(t.id)}
+                            className="btn-remark-edit"
+                            title="Edit remark"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          {saveStatus[t.id] === 'saved' && (
+                            <span style={{ color: '#16a34a', display: 'inline-flex', alignItems: 'center' }} title="Saved">
+                              <Check size={13} />
+                            </span>
+                          )}
+                        </div>
                       )}
-                      {saveStatus[t.id] === 'saved' && (
-                        <span style={{ position: 'absolute', right: '6px', color: '#16a34a' }} title="Saved">
-                          <Check size={14} />
-                        </span>
-                      )}
-                      {saveStatus[t.id] === 'error' && (
-                        <span style={{ position: 'absolute', right: '6px', color: '#dc2626' }} title="Failed to save">
-                          <AlertCircle size={14} />
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

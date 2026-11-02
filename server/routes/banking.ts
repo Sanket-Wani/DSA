@@ -41,6 +41,41 @@ const upload = multer({
   }
 });
 
+// GET /api/banking/account-holders
+router.get('/account-holders', (_req, res) => {
+  try {
+    const holders = db.prepare(`
+      SELECT id, name, created_at
+      FROM banking_account_holders
+      ORDER BY name COLLATE NOCASE ASC
+    `).all() as any[];
+    res.json({ accountHolders: holders });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to fetch account holders' });
+  }
+});
+
+// POST /api/banking/account-holders
+router.post('/account-holders', (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Account Holder Name is required.' });
+    }
+    const cleanName = name.trim();
+    const now = new Date().toISOString();
+
+    let existing = db.prepare('SELECT id, name, created_at FROM banking_account_holders WHERE LOWER(name) = LOWER(?)').get(cleanName) as any;
+    if (!existing) {
+      const ins = db.prepare('INSERT INTO banking_account_holders (name, created_at) VALUES (?, ?)').run(cleanName, now);
+      existing = { id: Number(ins.lastInsertRowid), name: cleanName, created_at: now };
+    }
+    res.status(201).json({ accountHolder: existing, message: 'Account holder created successfully.' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to create account holder' });
+  }
+});
+
 // GET /api/banking/accounts
 router.get('/accounts', (req, res) => {
   try {
@@ -149,6 +184,11 @@ router.post('/accounts', (req, res) => {
       account_holder_name.trim(),
       now
     );
+
+    // Ensure account holder is present in shared master list
+    db.prepare(`
+      INSERT OR IGNORE INTO banking_account_holders (name, created_at) VALUES (?, ?)
+    `).run(account_holder_name.trim(), now);
 
     const createdAccount = db.prepare(`
       SELECT id, bank_name, branch, account_type, ifsc_code, account_number, account_holder_name, monthly_statuses, created_at

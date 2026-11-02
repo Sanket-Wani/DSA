@@ -377,6 +377,30 @@ export function runMigration() {
           created_at TEXT NOT NULL
         );
       `);
+
+      // 14. Create banking_account_holders table and migrate existing holders
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS banking_account_holders (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT UNIQUE NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_banking_account_holders_name ON banking_account_holders(name);
+      `);
+
+      const existingHolders = db.prepare(`
+        SELECT DISTINCT TRIM(account_holder_name) as name 
+        FROM banking_accounts 
+        WHERE account_holder_name IS NOT NULL AND TRIM(account_holder_name) != ''
+      `).all() as any[];
+
+      const nowMigration = new Date().toISOString();
+      const insertHolder = db.prepare(`
+        INSERT OR IGNORE INTO banking_account_holders (name, created_at) VALUES (?, ?)
+      `);
+      for (const h of existingHolders) {
+        insertHolder.run(h.name, nowMigration);
+      }
     })();
   } finally {
     db.pragma('foreign_keys = ON');

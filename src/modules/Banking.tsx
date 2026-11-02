@@ -18,6 +18,7 @@ import { Select } from '../components/Select.js';
 import { Badge } from '../components/Badge.js';
 import {
   BankingAccount,
+  BankingAccountHolder,
   BankingAccountType,
   MonthlyStatus,
   StatementGapDetails,
@@ -34,6 +35,13 @@ export const Banking: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Account Holders & Filter Tab State
+  const [accountHolders, setAccountHolders] = useState<BankingAccountHolder[]>([]);
+  const [selectedHolderFilter, setSelectedHolderFilter] = useState<string>('all');
+  const [isAddingHolder, setIsAddingHolder] = useState(false);
+  const [newHolderName, setNewHolderName] = useState('');
+  const [isSavingHolder, setIsSavingHolder] = useState(false);
 
   // Selected Bank Account Row State
   const [selectedAccount, setSelectedAccount] = useState<BankingAccount | null>(null);
@@ -97,8 +105,19 @@ export const Banking: React.FC = () => {
     }
   };
 
+  // Fetch Account Holders
+  const fetchAccountHolders = async () => {
+    try {
+      const data = await apiRequest<{ accountHolders: BankingAccountHolder[] }>('/api/banking/account-holders');
+      setAccountHolders(data.accountHolders || []);
+    } catch (err: any) {
+      console.error('Failed to load account holders:', err);
+    }
+  };
+
   useEffect(() => {
     fetchAccounts();
+    fetchAccountHolders();
   }, []);
 
   // Form Reset
@@ -110,6 +129,8 @@ export const Banking: React.FC = () => {
     setIfscCode('');
     setAccountNumber('');
     setAccountHolderName('');
+    setIsAddingHolder(false);
+    setNewHolderName('');
     setFormError(null);
   };
 
@@ -120,6 +141,36 @@ export const Banking: React.FC = () => {
     } else {
       setIsAddBankOpen(true);
       setFormError(null);
+    }
+  };
+
+  // Create new Account Holder handler
+  const handleCreateAccountHolder = async () => {
+    if (!newHolderName.trim()) {
+      setFormError('Please enter Account Holder Name.');
+      return;
+    }
+    setIsSavingHolder(true);
+    setFormError(null);
+    try {
+      const res = await apiRequest<{ accountHolder: BankingAccountHolder; message: string }>('/api/banking/account-holders', {
+        method: 'POST',
+        body: JSON.stringify({ name: newHolderName.trim() })
+      });
+      const created = res.accountHolder;
+      setAccountHolders(prev => {
+        if (prev.some(h => h.id === created.id || h.name.toLowerCase() === created.name.toLowerCase())) {
+          return prev;
+        }
+        return [...prev, created].sort((a, b) => a.name.localeCompare(b.name));
+      });
+      setAccountHolderName(created.name);
+      setIsAddingHolder(false);
+      setNewHolderName('');
+    } catch (err: any) {
+      setFormError(err.message || 'Failed to save account holder.');
+    } finally {
+      setIsSavingHolder(false);
     }
   };
 
@@ -173,6 +224,7 @@ export const Banking: React.FC = () => {
       });
 
       setAccounts(prev => [...prev, res.account]);
+      fetchAccountHolders();
       setSuccessMsg(`Bank account "${res.account.bank_name} - ${res.account.account_number}" registered successfully.`);
       setIsAddBankOpen(false);
       resetForm();
@@ -180,6 +232,27 @@ export const Banking: React.FC = () => {
       setFormError(err.message || 'Failed to register bank account.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Filter tabs list & filtered accounts
+  const filterTabsList = Array.from(
+    new Set([
+      ...accountHolders.map(h => h.name.trim()),
+      ...accounts.map(a => a.account_holder_name?.trim()).filter(Boolean)
+    ])
+  ).sort((a, b) => a.localeCompare(b));
+
+  const filteredAccounts = selectedHolderFilter === 'all'
+    ? accounts
+    : accounts.filter(a => a.account_holder_name?.trim().toLowerCase() === selectedHolderFilter.trim().toLowerCase());
+
+  const handleFilterChange = (holderName: string) => {
+    setSelectedHolderFilter(holderName);
+    if (holderName !== 'all' && selectedAccount) {
+      if (selectedAccount.account_holder_name?.trim().toLowerCase() !== holderName.trim().toLowerCase()) {
+        setSelectedAccount(null);
+      }
     }
   };
 
@@ -616,14 +689,63 @@ export const Banking: React.FC = () => {
               <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569' }}>
                 Account Holder Name <span style={{ color: '#dc2626' }}>*</span>
               </label>
-              <input
-                type="text"
-                placeholder="e.g. Vinayak Associates"
-                value={accountHolderName}
-                onChange={e => setAccountHolderName(e.target.value)}
-                className="inline-field-input"
-                title="Account Holder Name"
-              />
+              {!isAddingHolder ? (
+                <select
+                  value={accountHolderName}
+                  onChange={e => {
+                    if (e.target.value === '__add_new__') {
+                      setIsAddingHolder(true);
+                      setNewHolderName('');
+                    } else {
+                      setAccountHolderName(e.target.value);
+                    }
+                  }}
+                  className="inline-field-select"
+                  title="Account Holder Name"
+                >
+                  <option value="">-- Select Account Holder --</option>
+                  {accountHolders.map(h => (
+                    <option key={h.id} value={h.name}>
+                      {h.name}
+                    </option>
+                  ))}
+                  <option value="__add_new__">+ Add Account Holder</option>
+                </select>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <input
+                    type="text"
+                    placeholder="e.g. Vinayak Associates"
+                    value={newHolderName}
+                    onChange={e => setNewHolderName(e.target.value)}
+                    className="inline-field-input"
+                    title="New Account Holder Name"
+                    autoFocus
+                  />
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={handleCreateAccountHolder}
+                      disabled={isSavingHolder}
+                      className="btn btn-primary btn-sm"
+                      style={{ height: '24px', fontSize: '11px', padding: '0 8px', flex: 1 }}
+                    >
+                      {isSavingHolder ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingHolder(false);
+                        setNewHolderName('');
+                      }}
+                      className="btn btn-secondary btn-sm"
+                      style={{ height: '24px', fontSize: '11px', padding: '0 8px' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -654,9 +776,37 @@ export const Banking: React.FC = () => {
         </div>
       )}
 
+      {/* Account Holder Filter Segmented Tabs */}
+      <div className="account-holder-filter-bar">
+        <button
+          type="button"
+          onClick={() => handleFilterChange('all')}
+          className={`account-holder-filter-tab ${selectedHolderFilter === 'all' ? 'active' : ''}`}
+        >
+          All
+          <span className="tab-count-badge">{accounts.length}</span>
+        </button>
+        {filterTabsList.map(name => {
+          const count = accounts.filter(
+            a => a.account_holder_name?.trim().toLowerCase() === name.trim().toLowerCase()
+          ).length;
+          return (
+            <button
+              key={name}
+              type="button"
+              onClick={() => handleFilterChange(name)}
+              className={`account-holder-filter-tab ${selectedHolderFilter.trim().toLowerCase() === name.trim().toLowerCase() ? 'active' : ''}`}
+            >
+              {name}
+              <span className="tab-count-badge">{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Banking Data Table with Sticky Columns and Monthly Scrollable Grid */}
       <div className="banking-table-container">
-        <table className="banking-table" aria-label="Banking Dashboard Table">
+        <table className={`banking-table ${selectedHolderFilter !== 'all' ? 'hide-holder-col' : ''}`} aria-label="Banking Dashboard Table">
           <thead>
             <tr>
               <th className="col-sticky-1" scope="col">
@@ -668,9 +818,11 @@ export const Banking: React.FC = () => {
               <th className="col-sticky-3" scope="col">
                 Account no.
               </th>
-              <th className="col-sticky-4" scope="col">
-                Account Holder Name
-              </th>
+              {selectedHolderFilter === 'all' && (
+                <th className="col-sticky-4" scope="col">
+                  Account Holder Name
+                </th>
+              )}
 
               {months.map(m => (
                 <th key={m} className="col-month" scope="col">
@@ -683,22 +835,24 @@ export const Banking: React.FC = () => {
           <tbody>
             {isLoading && accounts.length === 0 ? (
               <tr>
-                <td colSpan={4 + months.length} style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b' }}>
+                <td colSpan={(selectedHolderFilter === 'all' ? 4 : 3) + months.length} style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b' }}>
                   <RefreshCw size={20} className="animate-spin" style={{ margin: '0 auto 8px auto', display: 'block' }} />
                   Loading bank accounts...
                 </td>
               </tr>
-            ) : accounts.length === 0 ? (
+            ) : filteredAccounts.length === 0 ? (
               <tr>
-                <td colSpan={4 + months.length} className="table-empty">
+                <td colSpan={(selectedHolderFilter === 'all' ? 4 : 3) + months.length} className="table-empty">
                   <div className="table-empty-icon">
                     <Building2 size={36} strokeWidth={1.5} />
                   </div>
                   <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
-                    No Bank Accounts Added Yet
+                    {selectedHolderFilter === 'all' ? 'No Bank Accounts Added Yet' : `No Bank Accounts for "${selectedHolderFilter}"`}
                   </div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>
-                    Click "Add Bank" above to register your first bank account in the system.
+                    {selectedHolderFilter === 'all'
+                      ? 'Click "Add Bank" above to register your first bank account in the system.'
+                      : 'Switch tabs or click "Add Bank" to register a bank account under this account holder.'}
                   </div>
                   <Button variant="primary" size="sm" onClick={() => setIsAddBankOpen(true)} icon={<Plus size={14} />}>
                     Add Bank
@@ -706,7 +860,7 @@ export const Banking: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              accounts.map(acc => {
+              filteredAccounts.map(acc => {
                 const isSelected = selectedAccount?.id === acc.id;
                 return (
                   <tr
@@ -785,24 +939,26 @@ export const Banking: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* Fixed Column 4: Account Holder Name */}
-                    <td className="col-sticky-4">
-                      <span
-                        style={{
-                          fontSize: '12.5px',
-                          fontWeight: 500,
-                          color: '#0f172a',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                          lineHeight: 1.35
-                        }}
-                        title={acc.account_holder_name}
-                      >
-                        {acc.account_holder_name}
-                      </span>
-                    </td>
+                    {/* Fixed Column 4: Account Holder Name (Visible ONLY when All is selected) */}
+                    {selectedHolderFilter === 'all' && (
+                      <td className="col-sticky-4">
+                        <span
+                          style={{
+                            fontSize: '12.5px',
+                            fontWeight: 500,
+                            color: '#0f172a',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            lineHeight: 1.35
+                          }}
+                          title={acc.account_holder_name}
+                        >
+                          {acc.account_holder_name}
+                        </span>
+                      </td>
+                    )}
 
                     {/* Monthly Columns */}
                     {months.map(m => {
