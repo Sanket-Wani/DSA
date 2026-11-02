@@ -843,9 +843,11 @@ export const Banking: React.FC = () => {
       )}
 
       {/* Account Holder Filter Segmented Tabs */}
-      <div className="account-holder-filter-bar">
+      <div className="account-holder-filter-bar" role="tablist" aria-label="Account Holder Filters">
         <button
           type="button"
+          role="tab"
+          aria-selected={selectedHolderFilter === 'all'}
           onClick={() => handleFilterChange('all')}
           className={`account-holder-filter-tab ${selectedHolderFilter === 'all' ? 'active' : ''}`}
         >
@@ -856,12 +858,15 @@ export const Banking: React.FC = () => {
           const count = accounts.filter(
             a => a.account_holder_name?.trim().toLowerCase() === name.trim().toLowerCase()
           ).length;
+          const isSelected = selectedHolderFilter.trim().toLowerCase() === name.trim().toLowerCase();
           return (
             <button
               key={name}
               type="button"
+              role="tab"
+              aria-selected={isSelected}
               onClick={() => handleFilterChange(name)}
-              className={`account-holder-filter-tab ${selectedHolderFilter.trim().toLowerCase() === name.trim().toLowerCase() ? 'active' : ''}`}
+              className={`account-holder-filter-tab ${isSelected ? 'active' : ''}`}
             >
               {name}
               <span className="tab-count-badge">{count}</span>
