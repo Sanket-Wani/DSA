@@ -302,8 +302,8 @@ export const Banking: React.FC = () => {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-              gap: '12px',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))',
+              gap: '8px',
               alignItems: 'flex-start'
             }}
           >
@@ -493,11 +493,30 @@ export const Banking: React.FC = () => {
                 <tr key={acc.id}>
                   {/* Fixed Column 1: Bank Name + Bank Branch */}
                   <td className="col-sticky-1">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <span style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.25 }}>
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          fontSize: '12.5px',
+                          color: '#0f172a',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}
+                        title={acc.bank_name}
+                      >
                         {acc.bank_name}
                       </span>
-                      <span style={{ fontSize: '11px', color: '#64748b' }}>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          color: '#64748b',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}
+                        title={acc.branch}
+                      >
                         {acc.branch}
                       </span>
                     </div>
@@ -508,15 +527,16 @@ export const Banking: React.FC = () => {
                     <Badge
                       label={acc.account_type === 'CA' ? 'CA' : 'Saving'}
                       variant={acc.account_type === 'CA' ? 'info' : 'neutral'}
+                      className="badge-compact"
                     />
                   </td>
 
                   {/* Fixed Column 3: Account Number & IFSC Code */}
                   <td className="col-sticky-3">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.25 }}>
                       <span
                         style={{
-                          fontSize: '13px',
+                          fontSize: '12.5px',
                           fontWeight: 600,
                           color: '#0f172a',
                           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
@@ -526,7 +546,7 @@ export const Banking: React.FC = () => {
                       </span>
                       <span
                         style={{
-                          fontSize: '11px',
+                          fontSize: '10.5px',
                           color: '#64748b',
                           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                           letterSpacing: '0.02em'
@@ -539,7 +559,19 @@ export const Banking: React.FC = () => {
 
                   {/* Fixed Column 4: Account Holder Name */}
                   <td className="col-sticky-4">
-                    <span style={{ fontSize: '13px', fontWeight: 500, color: '#0f172a' }}>
+                    <span
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        color: '#0f172a',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        lineHeight: 1.3
+                      }}
+                      title={acc.account_holder_name}
+                    >
                       {acc.account_holder_name}
                     </span>
                   </td>

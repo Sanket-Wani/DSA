@@ -711,18 +711,18 @@
 .banking-table th {
   background-color: var(--color-surface-subtle);
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: 11px;
   font-weight: var(--font-weight-semibold);
   letter-spacing: 0.02em;
-  padding: var(--space-3) var(--space-4);
+  padding: 8px 10px;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
 }
 
 .banking-table td {
-  padding: var(--space-3) var(--space-4);
+  padding: 8px 10px;
   border-bottom: 1px solid var(--color-border);
-  font-size: var(--font-size-md);
+  font-size: 12px;
   color: var(--color-text-primary);
   vertical-align: middle;
 }
@@ -735,14 +735,14 @@
   background-color: var(--color-surface-hover);
 }
 
-/* Sticky Columns */
+/* Sticky Columns — Compact & Readability Optimized */
 .banking-table th.col-sticky-1,
 .banking-table td.col-sticky-1 {
   position: sticky;
   left: 0;
-  width: 220px;
-  min-width: 220px;
-  max-width: 220px;
+  width: 145px;
+  min-width: 145px;
+  max-width: 145px;
   z-index: 2;
   background-color: var(--color-surface);
 }
@@ -750,21 +750,22 @@
 .banking-table th.col-sticky-2,
 .banking-table td.col-sticky-2 {
   position: sticky;
-  left: 220px;
-  width: 110px;
-  min-width: 110px;
-  max-width: 110px;
+  left: 145px;
+  width: 70px;
+  min-width: 70px;
+  max-width: 70px;
   z-index: 2;
+  text-align: center;
   background-color: var(--color-surface);
 }
 
 .banking-table th.col-sticky-3,
 .banking-table td.col-sticky-3 {
   position: sticky;
-  left: 330px;
-  width: 200px;
-  min-width: 200px;
-  max-width: 200px;
+  left: 215px;
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
   z-index: 2;
   background-color: var(--color-surface);
 }
@@ -772,10 +773,10 @@
 .banking-table th.col-sticky-4,
 .banking-table td.col-sticky-4 {
   position: sticky;
-  left: 530px;
-  width: 200px;
-  min-width: 200px;
-  max-width: 200px;
+  left: 355px;
+  width: 155px;
+  min-width: 155px;
+  max-width: 155px;
   z-index: 2;
   background-color: var(--color-surface);
   border-right: 2px solid var(--color-border-strong);
@@ -799,14 +800,15 @@
   background-color: var(--color-surface-hover);
 }
 
-/* Monthly columns */
+/* Monthly columns — Compact */
 .banking-table th.col-month,
 .banking-table td.col-month {
-  width: 86px;
-  min-width: 86px;
-  max-width: 92px;
+  width: 68px;
+  min-width: 68px;
+  max-width: 72px;
   text-align: center;
-  padding: 8px 4px;
+  padding: 6px 2px;
+  font-size: 11px;
 }
 
 .month-status-cell-unuploaded {
@@ -834,6 +836,16 @@
   border-radius: 3px;
   pointer-events: none;
   user-select: none;
+}
+
+.badge-compact {
+  padding: 2px 6px;
+  font-size: 10.5px;
+  gap: 4px;
+}
+.badge-compact .badge-dot {
+  width: 5px;
+  height: 5px;
 }
 
 
