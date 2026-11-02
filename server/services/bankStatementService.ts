@@ -414,17 +414,26 @@ export function checkAndResolvePendingStatements(accountId: number) {
 }
 
 /**
- * Fetch all stored transactions for an account in chronological order
+ * Fetch stored transactions for an account in chronological order, optionally filtered by month (YYYY-MM)
  */
-export function getAccountTransactions(accountId: number): BankingTransaction[] {
-  const rows = db.prepare(`
+export function getAccountTransactions(accountId: number, month?: string): BankingTransaction[] {
+  let query = `
     SELECT 
       id, account_id, statement_batch_id, transaction_date, original_date_str,
       particulars, debit_paise, credit_paise, balance_paise, remarks, created_at
     FROM banking_transactions
     WHERE account_id = ?
-    ORDER BY transaction_date ASC, id ASC
-  `).all(accountId) as any[];
+  `;
+  const params: any[] = [accountId];
+
+  if (month && month.trim()) {
+    query += ` AND transaction_date LIKE ?`;
+    params.push(`${month.trim()}%`);
+  }
+
+  query += ` ORDER BY transaction_date ASC, id ASC`;
+
+  const rows = db.prepare(query).all(...params) as any[];
 
   return rows.map(r => ({
     id: r.id,

@@ -815,7 +815,15 @@
 }
 
 .banking-table td.col-month {
-  padding: 14px 2px;
+  padding: 10px 2px;
+  cursor: pointer;
+  text-align: center;
+  vertical-align: middle;
+  transition: filter 120ms ease;
+}
+
+.banking-table td.col-month:hover {
+  filter: brightness(0.95);
 }
 
 .month-status-cell-unuploaded {
@@ -843,6 +851,22 @@
   border-radius: 4px;
   pointer-events: none;
   user-select: none;
+}
+
+.month-progress-bar {
+  width: 28px;
+  height: 3.5px;
+  background-color: #0f172a;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 3.5px;
+}
+
+.month-progress-bar-fill {
+  height: 100%;
+  background-color: #16a34a;
+  border-radius: 2px;
+  transition: width 150ms ease;
 }
 
 .badge-compact {
@@ -1015,6 +1039,23 @@
 
 .transaction-table tbody tr:hover td {
   background-color: var(--color-surface-hover);
+}
+
+/* Transaction Row Status Colors: Green for filled remarks, Red for empty remarks */
+.transaction-table tbody tr.txn-row-filled td {
+  background-color: var(--color-success-bg) !important;
+}
+
+.transaction-table tbody tr.txn-row-filled:hover td {
+  background-color: #d1fae5 !important;
+}
+
+.transaction-table tbody tr.txn-row-empty td {
+  background-color: var(--color-danger-bg) !important;
+}
+
+.transaction-table tbody tr.txn-row-empty:hover td {
+  background-color: #fee2e2 !important;
 }
 
 .txn-amount-num {

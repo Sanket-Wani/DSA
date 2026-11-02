@@ -77,7 +77,7 @@ router.post('/account-holders', (req, res) => {
 });
 
 // GET /api/banking/accounts
-router.get('/accounts', (req, res) => {
+router.get('/accounts', (_req, res) => {
   try {
     const accounts = db.prepare(`
       SELECT id, bank_name, branch, account_type, ifsc_code, account_number, account_holder_name, monthly_statuses, created_at
@@ -85,18 +85,62 @@ router.get('/accounts', (req, res) => {
       ORDER BY id ASC
     `).all() as any[];
 
-    const formattedAccounts = accounts.map(a => {
-      let statuses = undefined;
-      if (a.monthly_statuses) {
-        try {
-          statuses = JSON.parse(a.monthly_statuses);
-        } catch {
-          statuses = undefined;
+    // Dynamically calculate monthly remarks completion per account and year-month from actual transactions
+    const monthlyStats = db.prepare(`
+      SELECT 
+        account_id,
+        SUBSTR(transaction_date, 1, 7) as ym,
+        COUNT(*) as total_txns,
+        SUM(CASE WHEN remarks IS NOT NULL AND TRIM(remarks) != '' THEN 1 ELSE 0 END) as remarks_filled
+      FROM banking_transactions
+      GROUP BY account_id, SUBSTR(transaction_date, 1, 7)
+    `).all() as any[];
+
+    const statsMap: Record<number, Record<string, { status: string; total: number; filled: number; progress: number }>> = {};
+    for (const stat of monthlyStats) {
+      if (!statsMap[stat.account_id]) {
+        statsMap[stat.account_id] = {};
+      }
+      const total = Number(stat.total_txns) || 0;
+      const filled = Number(stat.remarks_filled) || 0;
+      let status = 'unuploaded';
+      let progress = 0;
+      if (total > 0) {
+        progress = Math.round((filled / total) * 100);
+        if (filled === total) {
+          status = 'complete';
+        } else if (filled > 0) {
+          status = 'partially_complete';
+        } else {
+          status = 'fully_incomplete';
         }
       }
+      const details = { status, total, filled, progress };
+      // Support standard 'YYYY-MM' (e.g. '2026-04') and short 'YYYY-M' (e.g. '2026-4')
+      statsMap[stat.account_id][stat.ym] = details;
+      const parts = stat.ym.split('-');
+      if (parts.length === 2) {
+        const shortKey = `${parts[0]}-${parseInt(parts[1], 10)}`;
+        statsMap[stat.account_id][shortKey] = details;
+      }
+    }
+
+    const formattedAccounts = accounts.map(a => {
+      let storedStatuses: Record<string, any> = {};
+      if (a.monthly_statuses) {
+        try {
+          storedStatuses = JSON.parse(a.monthly_statuses);
+        } catch {
+          storedStatuses = {};
+        }
+      }
+
+      const computedStatuses = statsMap[a.id] || {};
+      const mergedStatuses = { ...storedStatuses, ...computedStatuses };
+
       return {
         ...a,
-        monthly_statuses: statuses
+        monthly_statuses: mergedStatuses
       };
     });
 
@@ -254,8 +298,37 @@ router.get('/accounts/:id/transactions', (req, res) => {
   }
 
   try {
-    const transactions = getAccountTransactions(accountId);
-    res.json({ transactions });
+    // 1. Fetch distinct months with recorded transactions for this specific account
+    const availableRows = db.prepare(`
+      SELECT DISTINCT SUBSTR(transaction_date, 1, 7) as ym
+      FROM banking_transactions
+      WHERE account_id = ?
+      ORDER BY ym DESC
+    `).all(accountId) as any[];
+
+    const availableMonths = availableRows.map(r => r.ym);
+
+    // 2. Determine target month filter
+    let monthFilter: string | undefined = undefined;
+    if (typeof req.query.month === 'string' && req.query.month.trim()) {
+      const rawMonth = req.query.month.trim();
+      const parts = rawMonth.split('-');
+      if (parts.length === 2) {
+        monthFilter = `${parts[0]}-${parts[1].padStart(2, '0')}`;
+      } else {
+        monthFilter = rawMonth;
+      }
+    } else if (req.query.all !== 'true' && availableMonths.length > 0) {
+      // Default to latest available month if no month query is given
+      monthFilter = availableMonths[0];
+    }
+
+    const transactions = getAccountTransactions(accountId, monthFilter);
+    res.json({
+      transactions,
+      available_months: availableMonths,
+      selected_month: monthFilter || null
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to fetch transactions.' });
   }

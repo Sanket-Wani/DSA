@@ -21,6 +21,7 @@ import {
   BankingAccountHolder,
   BankingAccountType,
   MonthlyStatus,
+  MonthlyStatusDetails,
   StatementGapDetails,
   StatementUploadResponse
 } from '../types/index.js';
@@ -29,6 +30,7 @@ import { BankingTransactions } from './BankingTransactions';
 export const Banking: React.FC = () => {
   // Navigation / View Mode
   const [viewMode, setViewMode] = useState<'dashboard' | 'transactions'>('dashboard');
+  const [selectedMonthContext, setSelectedMonthContext] = useState<{ year: number; month: number } | null>(null);
 
   // Accounts list state
   const [accounts, setAccounts] = useState<BankingAccount[]>([]);
@@ -372,36 +374,95 @@ export const Banking: React.FC = () => {
 
   const selectedYearNum = parseInt(selectedYear, 10) || currentSystemYear;
 
-  // Render monthly indicator cell
-  const renderStatusCell = (status: MonthlyStatus) => {
+  // Extract dynamic monthly status and progress from account
+  const getMonthlyDetails = (acc: BankingAccount, year: number, month: number): MonthlyStatusDetails => {
+    const ymKey1 = `${year}-${String(month).padStart(2, '0')}`;
+    const ymKey2 = `${year}-${month}`;
+    const val = (acc.monthly_statuses as any)?.[ymKey1] || (acc.monthly_statuses as any)?.[ymKey2];
+    if (!val) {
+      return { status: 'unuploaded', total: 0, filled: 0, progress: 0 };
+    }
+    if (typeof val === 'string') {
+      return {
+        status: val as MonthlyStatus,
+        total: val === 'unuploaded' ? 0 : 1,
+        filled: val === 'complete' ? 1 : 0,
+        progress: val === 'complete' ? 100 : 0
+      };
+    }
+    return val as MonthlyStatusDetails;
+  };
+
+  // Month cell click handler: navigate strictly to transactions for this account and calendar month
+  const handleMonthCellClick = (acc: BankingAccount, year: number, month: number) => {
+    setSelectedAccount(acc);
+    setSelectedMonthContext({ year, month });
+    setViewMode('transactions');
+  };
+
+  // Render monthly indicator cell with checkbox and dynamic progress bar
+  const renderStatusCell = (status: MonthlyStatus, progress: number = 0) => {
     switch (status) {
       case 'complete':
         return (
-          <span
-            className="banking-checkbox-indicator"
-            style={{ backgroundColor: '#15803d', color: '#ffffff' }}
-            title="Complete"
-          >
-            <Check size={12} strokeWidth={3} />
-          </span>
+          <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <span
+              className="banking-checkbox-indicator"
+              style={{ backgroundColor: '#15803d', color: '#ffffff' }}
+              title="Complete"
+            >
+              <Check size={12} strokeWidth={3} />
+            </span>
+            <div
+              className="month-progress-bar"
+              title="Completion: 100%"
+            >
+              <div
+                className="month-progress-bar-fill"
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
         );
       case 'partially_complete':
         return (
-          <span
-            className="banking-checkbox-indicator"
-            style={{ backgroundColor: '#b91c1c', color: '#ffffff' }}
-            title="Partially Complete"
-          >
-            <Check size={12} strokeWidth={3} />
-          </span>
+          <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <span
+              className="banking-checkbox-indicator"
+              style={{ backgroundColor: '#b91c1c', color: '#ffffff' }}
+              title="Partially Complete"
+            >
+              <Check size={12} strokeWidth={3} />
+            </span>
+            <div
+              className="month-progress-bar"
+              title={`Completion: ${progress}%`}
+            >
+              <div
+                className="month-progress-bar-fill"
+                style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+              />
+            </div>
+          </div>
         );
       case 'fully_incomplete':
         return (
-          <span
-            className="banking-checkbox-indicator"
-            style={{ backgroundColor: '#ffffff', border: '1.5px solid #b91c1c' }}
-            title="Fully Incomplete"
-          />
+          <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <span
+              className="banking-checkbox-indicator"
+              style={{ backgroundColor: '#ffffff', border: '1.5px solid #b91c1c' }}
+              title="Fully Incomplete"
+            />
+            <div
+              className="month-progress-bar"
+              title="Completion: 0%"
+            >
+              <div
+                className="month-progress-bar-fill"
+                style={{ width: '0%' }}
+              />
+            </div>
+          </div>
         );
       case 'unuploaded':
       default:
@@ -409,12 +470,17 @@ export const Banking: React.FC = () => {
     }
   };
 
-  // If in transaction view, render dedicated BankingTransactions module
+  // If in transaction view, render dedicated BankingTransactions module scoped to month
   if (viewMode === 'transactions' && selectedAccount) {
     return (
       <BankingTransactions
         account={selectedAccount}
-        onBack={() => setViewMode('dashboard')}
+        initialYear={selectedMonthContext?.year || selectedYearNum}
+        initialMonth={selectedMonthContext?.month || (new Date().getMonth() + 1)}
+        onBack={() => {
+          setViewMode('dashboard');
+          fetchAccounts();
+        }}
         onAccountUpdated={fetchAccounts}
       />
     );
@@ -866,12 +932,8 @@ export const Banking: React.FC = () => {
                   <tr
                     key={acc.id}
                     onClick={() => handleRowClick(acc)}
-                    onDoubleClick={() => {
-                      setSelectedAccount(acc);
-                      setViewMode('transactions');
-                    }}
                     className={isSelected ? 'banking-row-selected' : ''}
-                    title="Click row to select account for Statement Upload (double-click to view transactions)"
+                    title="Click row to select account for Statement Upload"
                   >
                     {/* Fixed Column 1: Bank Name */}
                     <td className="col-sticky-1">
@@ -963,8 +1025,8 @@ export const Banking: React.FC = () => {
                     {/* Monthly Columns */}
                     {months.map(m => {
                       const isFuture = isFutureMonth(selectedYearNum, m);
-                      const ymKey = `${selectedYearNum}-${m}`;
-                      const rawStatus: MonthlyStatus = (acc.monthly_statuses?.[ymKey] as MonthlyStatus) || 'unuploaded';
+                      const details = getMonthlyDetails(acc, selectedYearNum, m);
+                      const rawStatus = isFuture ? 'future' : details.status;
 
                       let cellClassName = 'col-month';
                       if (!isFuture) {
@@ -980,8 +1042,16 @@ export const Banking: React.FC = () => {
                       }
 
                       return (
-                        <td key={m} className={cellClassName}>
-                          {!isFuture && renderStatusCell(rawStatus)}
+                        <td
+                          key={m}
+                          className={cellClassName}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMonthCellClick(acc, selectedYearNum, m);
+                          }}
+                          title={`Click to view transactions for ${MONTH_NAMES[m - 1]} ${selectedYearNum}`}
+                        >
+                          {!isFuture && renderStatusCell(details.status, details.progress)}
                         </td>
                       );
                     })}
@@ -1263,6 +1333,15 @@ export const Banking: React.FC = () => {
                       variant="primary"
                       onClick={() => {
                         handleCloseUploadModal();
+                        if (successSummary?.months_updated && successSummary.months_updated.length > 0) {
+                          const parts = successSummary.months_updated[0].split('-');
+                          if (parts.length === 2) {
+                            setSelectedMonthContext({
+                              year: parseInt(parts[0], 10),
+                              month: parseInt(parts[1], 10)
+                            });
+                          }
+                        }
                         setViewMode('transactions');
                       }}
                       icon={<ArrowRight size={14} />}

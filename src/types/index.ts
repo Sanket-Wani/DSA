@@ -230,6 +230,13 @@ export interface BankingAccountHolder {
 
 export type MonthlyStatus = 'complete' | 'partially_complete' | 'fully_incomplete' | 'unuploaded';
 
+export interface MonthlyStatusDetails {
+  status: MonthlyStatus;
+  total: number;
+  filled: number;
+  progress: number;
+}
+
 export interface BankingAccount {
   id: number;
   bank_name: string;
@@ -239,7 +246,7 @@ export interface BankingAccount {
   account_number: string;
   account_holder_name: string;
   created_at: string;
-  monthly_statuses?: Record<string, MonthlyStatus>;
+  monthly_statuses?: Record<string, MonthlyStatus | MonthlyStatusDetails>;
 }
 
 export interface BankingTransaction {

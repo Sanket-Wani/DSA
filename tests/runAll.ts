@@ -490,6 +490,42 @@ async function runTests() {
   assert(testAcc && testAcc.bank_name === 'HDFC Bank', 'Banking account persisted with bank name');
   assert(testAcc && testAcc.ifsc_code === 'HDFC0000240', 'Banking account persisted with IFSC');
 
+  // Test 23: Month-Wise Transaction Access & Dynamic Status Calculation
+  console.log('\n--- 23. Month-Wise Transaction Access & Dynamic Completion Calculation ---');
+  // Add 3 transactions for 2026-04 and 2 for 2026-05
+  db.prepare(`
+    INSERT INTO banking_transactions (account_id, statement_batch_id, transaction_date, original_date_str, particulars, debit_paise, credit_paise, balance_paise, remarks, created_at)
+    VALUES (?, 'batch1', '2026-04-10', '10-04-2026', 'Vendor A', 150000, 0, 850000, '', ?)
+  `).run(testAccId, new Date().toISOString());
+  db.prepare(`
+    INSERT INTO banking_transactions (account_id, statement_batch_id, transaction_date, original_date_str, particulars, debit_paise, credit_paise, balance_paise, remarks, created_at)
+    VALUES (?, 'batch1', '2026-04-18', '18-04-2026', 'Vendor B', 250000, 0, 600000, '', ?)
+  `).run(testAccId, new Date().toISOString());
+  db.prepare(`
+    INSERT INTO banking_transactions (account_id, statement_batch_id, transaction_date, original_date_str, particulars, debit_paise, credit_paise, balance_paise, remarks, created_at)
+    VALUES (?, 'batch2', '2026-05-05', '05-05-2026', 'Receipt C', 0, 400000, 1000000, 'Received in full', ?)
+  `).run(testAccId, new Date().toISOString());
+
+  // Distinct available months
+  const availRows = db.prepare(`
+    SELECT DISTINCT SUBSTR(transaction_date, 1, 7) as ym FROM banking_transactions WHERE account_id = ? ORDER BY ym DESC
+  `).all(testAccId) as any[];
+  assert(availRows.length === 2 && availRows[0].ym === '2026-05' && availRows[1].ym === '2026-04', 'Discovered available months 2026-05 and 2026-04');
+
+  // Dynamic monthly status
+  const mStats = db.prepare(`
+    SELECT 
+      account_id, SUBSTR(transaction_date, 1, 7) as ym, COUNT(*) as total,
+      SUM(CASE WHEN remarks IS NOT NULL AND TRIM(remarks) != '' THEN 1 ELSE 0 END) as filled
+    FROM banking_transactions WHERE account_id = ? GROUP BY account_id, SUBSTR(transaction_date, 1, 7)
+  `).all(testAccId) as any[];
+  const aprStat = mStats.find(s => s.ym === '2026-04');
+  const mayStat = mStats.find(s => s.ym === '2026-05');
+  assert(aprStat && aprStat.total === 2 && aprStat.filled === 0, 'April 2026: 2 total, 0 filled (fully_incomplete, 0% progress)');
+  assert(mayStat && mayStat.total === 1 && mayStat.filled === 1, 'May 2026: 1 total, 1 filled (complete, 100% progress)');
+
+  // Clean test transactions
+  db.prepare('DELETE FROM banking_transactions WHERE account_id = ?').run(testAccId);
   db.prepare('DELETE FROM banking_accounts WHERE id = ?').run(testAccId);
 
   // Cleanup test artifacts

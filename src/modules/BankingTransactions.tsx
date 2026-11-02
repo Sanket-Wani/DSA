@@ -7,15 +7,28 @@ import { apiRequest } from '../api/client.js';
 
 interface BankingTransactionsProps {
   account: BankingAccount;
+  initialYear?: number;
+  initialMonth?: number;
   onBack: () => void;
   onAccountUpdated?: () => void;
 }
 
 export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
   account,
+  initialYear,
+  initialMonth,
   onBack,
   onAccountUpdated
 }) => {
+  // Format initial YYYY-MM
+  const getDefaultYm = (): string => {
+    const y = initialYear || new Date().getFullYear();
+    const m = initialMonth || new Date().getMonth() + 1;
+    return `${y}-${String(m).padStart(2, '0')}`;
+  };
+
+  const [currentYearMonth, setCurrentYearMonth] = useState<string>(getDefaultYm());
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [transactions, setTransactions] = useState<BankingTransaction[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,24 +38,48 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
   // Debounce timers for autosave
   const debounceTimers = useRef<Record<number, any>>({});
 
-  const fetchTransactions = useCallback(async () => {
+  const formatMonthDisplay = (ym: string): string => {
+    if (!ym) return '';
+    const parts = ym.split('-');
+    if (parts.length !== 2) return ym;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    if (m >= 1 && m <= 12) {
+      return `${monthNames[m - 1]} ${y}`;
+    }
+    return ym;
+  };
+
+  const fetchTransactions = useCallback(async (monthToFetch?: string) => {
     setIsLoading(true);
     setError(null);
+    const targetMonth = monthToFetch !== undefined ? monthToFetch : currentYearMonth;
     try {
-      const res = await apiRequest<{ transactions: BankingTransaction[] }>(
-        `/api/banking/accounts/${account.id}/transactions`
-      );
+      const queryParam = targetMonth ? `?month=${encodeURIComponent(targetMonth)}` : '';
+      const res = await apiRequest<{
+        transactions: BankingTransaction[];
+        available_months?: string[];
+        selected_month?: string;
+      }>(`/api/banking/accounts/${account.id}/transactions${queryParam}`);
+
       setTransactions(res.transactions || []);
+      if (res.available_months) {
+        setAvailableMonths(res.available_months);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load account transactions.');
     } finally {
       setIsLoading(false);
     }
-  }, [account.id]);
+  }, [account.id, currentYearMonth]);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    fetchTransactions(currentYearMonth);
+  }, [currentYearMonth, fetchTransactions]);
 
   // Handle remarks change with autosave
   const handleRemarksChange = (txnId: number, newRemarks: string) => {
@@ -67,6 +104,7 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
           body: JSON.stringify({ remarks: newRemarks })
         });
         setSaveStatus(prev => ({ ...prev, [txnId]: 'saved' }));
+        onAccountUpdated?.();
         setTimeout(() => {
           setSaveStatus(prev => {
             const next = { ...prev };
@@ -93,6 +131,7 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
         body: JSON.stringify({ remarks })
       });
       setSaveStatus(prev => ({ ...prev, [txnId]: 'saved' }));
+      onAccountUpdated?.();
       setTimeout(() => {
         setSaveStatus(prev => {
           const next = { ...prev };
@@ -128,7 +167,7 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
   return (
     <div className="page-content">
       {/* Top Header with Back Navigation and Account Details */}
-      <div className="page-header" style={{ marginBottom: '16px' }}>
+      <div className="page-header" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Button
             variant="secondary"
@@ -156,11 +195,51 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
           </div>
         </div>
 
-        <div className="page-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="page-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Month-Year Selector Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>Month:</span>
+            <select
+              value={currentYearMonth}
+              onChange={(e) => {
+                const newYm = e.target.value;
+                setCurrentYearMonth(newYm);
+                fetchTransactions(newYm);
+              }}
+              style={{
+                height: '32px',
+                padding: '0 24px 0 10px',
+                fontSize: '12px',
+                fontWeight: 500,
+                color: '#0f172a',
+                backgroundColor: '#ffffff',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+              aria-label="Select Statement Month"
+            >
+              {!availableMonths.includes(currentYearMonth) && (
+                <option value={currentYearMonth} disabled>
+                  {formatMonthDisplay(currentYearMonth)} (0 txns)
+                </option>
+              )}
+              {availableMonths.map(ym => (
+                <option key={ym} value={ym}>
+                  {formatMonthDisplay(ym)}
+                </option>
+              ))}
+              {availableMonths.length === 0 && (
+                <option value="" disabled>No statements uploaded</option>
+              )}
+            </select>
+          </div>
+
           <Button
             variant="secondary"
             size="sm"
-            onClick={fetchTransactions}
+            onClick={() => fetchTransactions(currentYearMonth)}
             disabled={isLoading}
             icon={<RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />}
           >
@@ -179,7 +258,7 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
         }}
       >
         <div className="summary-pill-card" style={{ padding: '12px 16px', background: '#ffffff', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Transactions</div>
+          <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Transactions ({formatMonthDisplay(currentYearMonth)})</div>
           <div style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>{transactions.length}</div>
         </div>
         <div className="summary-pill-card" style={{ padding: '12px 16px', background: '#ffffff', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
@@ -235,7 +314,9 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
               <tr>
                 <td colSpan={6} style={{ textAlign: 'center', padding: '48px 16px', color: '#64748b' }}>
                   <FileText size={36} strokeWidth={1.5} style={{ margin: '0 auto 8px auto', display: 'block', color: '#94a3b8' }} />
-                  <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', color: '#1e293b' }}>No Transactions Found</div>
+                  <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', color: '#1e293b' }}>
+                    No Transactions Found for {formatMonthDisplay(currentYearMonth)}
+                  </div>
                   <div style={{ fontSize: '12px', marginBottom: '12px' }}>
                     Upload a bank statement PDF from the Banking dashboard to import transactions for this account.
                   </div>
@@ -248,9 +329,10 @@ export const BankingTransactions: React.FC<BankingTransactionsProps> = ({
               transactions.map(t => {
                 const hasRemark = Boolean(t.remarks && t.remarks.trim());
                 const isEditing = editingTxnId === t.id;
+                const rowClass = hasRemark ? 'txn-row-filled' : 'txn-row-empty';
 
                 return (
-                  <tr key={t.id}>
+                  <tr key={t.id} className={rowClass}>
                     {/* 1. Transaction Date (DD-MM-YYYY) */}
                     <td style={{ fontSize: '12px', color: '#334155', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                       {formatDisplayDate(t.transaction_date)}
