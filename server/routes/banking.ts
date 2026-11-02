@@ -1,7 +1,45 @@
 import { Router } from 'express';
+import path from 'path';
+import fs from 'fs';
+import { randomUUID } from 'crypto';
+import multer from 'multer';
 import { db } from '../db.js';
+import {
+  processStatementUpload,
+  getAccountTransactions,
+  updateTransactionRemarks,
+  cancelPendingStatement
+} from '../services/bankStatementService.js';
 
 const router = Router();
+
+// Setup temporary upload storage
+const tempUploadDir = path.resolve(process.cwd(), 'uploads', 'temp');
+if (!fs.existsSync(tempUploadDir)) {
+  fs.mkdirSync(tempUploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, tempUploadDir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.pdf';
+    cb(null, `stmt_${Date.now()}_${randomUUID()}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'application/pdf' || file.originalname.toLowerCase().endsWith('.pdf')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF bank statements are supported.'));
+    }
+  }
+});
 
 // GET /api/banking/accounts
 router.get('/accounts', (req, res) => {
@@ -127,5 +165,134 @@ router.post('/accounts', (req, res) => {
   }
 });
 
-export default router;
+// POST /api/banking/accounts/:id/upload-statement
+router.post('/accounts/:id/upload-statement', upload.single('statement'), async (req, res) => {
+  const accountId = parseInt(req.params.id, 10);
+  if (isNaN(accountId)) {
+    return res.status(400).json({ error: 'Invalid account ID.' });
+  }
 
+  if (!req.file) {
+    return res.status(400).json({ error: 'No statement PDF file uploaded.' });
+  }
+
+  const skipDuplicates = req.query.skip_duplicates === 'true' || req.body.skip_duplicates === 'true' || req.body.skip_duplicates === true;
+
+  try {
+    const result = await processStatementUpload(
+      accountId,
+      req.file.path,
+      req.file.originalname,
+      skipDuplicates
+    );
+
+    if (result.status === 'gap_detected') {
+      return res.status(422).json(result);
+    }
+
+    if (result.status === 'duplicates_detected') {
+      return res.status(409).json(result);
+    }
+
+    res.json(result);
+  } catch (err: any) {
+    // Clean up temp file on failure
+    if (req.file && fs.existsSync(req.file.path)) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch {}
+    }
+    res.status(400).json({ error: err.message || 'Failed to process bank statement.' });
+  }
+});
+
+// GET /api/banking/accounts/:id/transactions
+router.get('/accounts/:id/transactions', (req, res) => {
+  const accountId = parseInt(req.params.id, 10);
+  if (isNaN(accountId)) {
+    return res.status(400).json({ error: 'Invalid account ID.' });
+  }
+
+  try {
+    const transactions = getAccountTransactions(accountId);
+    res.json({ transactions });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to fetch transactions.' });
+  }
+});
+
+// PUT /api/banking/transactions/:id/remarks
+router.put('/transactions/:id/remarks', (req, res) => {
+  const transactionId = parseInt(req.params.id, 10);
+  if (isNaN(transactionId)) {
+    return res.status(400).json({ error: 'Invalid transaction ID.' });
+  }
+
+  const { remarks } = req.body;
+  if (typeof remarks !== 'string') {
+    return res.status(400).json({ error: 'Remarks must be a string.' });
+  }
+
+  try {
+    const success = updateTransactionRemarks(transactionId, remarks);
+    if (!success) {
+      return res.status(404).json({ error: 'Transaction not found.' });
+    }
+    res.json({ success: true, message: 'Remarks saved successfully.' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to save remarks.' });
+  }
+});
+
+// GET /api/banking/accounts/:id/pending-statement
+router.get('/accounts/:id/pending-statement', (req, res) => {
+  const accountId = parseInt(req.params.id, 10);
+  if (isNaN(accountId)) {
+    return res.status(400).json({ error: 'Invalid account ID.' });
+  }
+
+  try {
+    const pending = db.prepare(`
+      SELECT id, account_id, original_filename, from_date, to_date,
+             opening_balance_paise, closing_balance_paise, gap_details_json, created_at
+      FROM banking_pending_statements
+      WHERE account_id = ? AND status = 'pending_gap'
+      ORDER BY id DESC LIMIT 1
+    `).get(accountId) as any;
+
+    if (!pending) {
+      return res.json({ pending: null });
+    }
+
+    let gapDetails = null;
+    try {
+      gapDetails = JSON.parse(pending.gap_details_json);
+    } catch {}
+
+    res.json({
+      pending: {
+        ...pending,
+        gap_details: gapDetails
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to fetch pending statement.' });
+  }
+});
+
+// DELETE /api/banking/accounts/:id/pending-statement
+router.delete('/accounts/:id/pending-statement', (req, res) => {
+  const accountId = parseInt(req.params.id, 10);
+  if (isNaN(accountId)) {
+    return res.status(400).json({ error: 'Invalid account ID.' });
+  }
+
+  try {
+    const success = cancelPendingStatement(accountId);
+    res.json({ success: true, message: 'Pending statement cancelled successfully.' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to cancel pending statement.' });
+  }
+});
+
+export default router;

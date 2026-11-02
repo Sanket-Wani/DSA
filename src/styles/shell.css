@@ -856,4 +856,55 @@
   height: 5px;
 }
 
+/* Selected Banking Account Row */
+.banking-table tbody tr {
+  cursor: pointer;
+}
+
+.banking-table tbody tr.banking-row-selected td {
+  background-color: #f0f7ff !important;
+}
+
+.banking-table tbody tr.banking-row-selected:hover td {
+  background-color: #e0f0fe !important;
+}
+
+.banking-table tbody tr.banking-row-selected td.col-sticky-1,
+.banking-table tbody tr.banking-row-selected td.col-sticky-2,
+.banking-table tbody tr.banking-row-selected td.col-sticky-3,
+.banking-table tbody tr.banking-row-selected td.col-sticky-4 {
+  background-color: #f0f7ff !important;
+}
+
+.banking-table tbody tr.banking-row-selected:hover td.col-sticky-1,
+.banking-table tbody tr.banking-row-selected:hover td.col-sticky-2,
+.banking-table tbody tr.banking-row-selected:hover td.col-sticky-3,
+.banking-table tbody tr.banking-row-selected:hover td.col-sticky-4 {
+  background-color: #e0f0fe !important;
+}
+
+/* Statement Upload Dropzone & Banners */
+.statement-upload-dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 24px 16px;
+  text-align: center;
+  background-color: #f8fafc;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.statement-upload-dropzone:hover {
+  border-color: #0284c7;
+  background-color: #f0f9ff;
+}
+
+.statement-gap-banner {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
 

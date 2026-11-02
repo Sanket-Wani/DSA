@@ -19,6 +19,8 @@ data/*.db
 Smart-Health-Report*.pdf
 deploy.py
 scripts/*.py
+!scripts/parse_bank_statement.py
+!scripts/seed_realistic_data.py
 
 # Environment variables
 .env

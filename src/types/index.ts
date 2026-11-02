@@ -235,3 +235,41 @@ export interface BankingAccount {
   created_at: string;
   monthly_statuses?: Record<string, MonthlyStatus>;
 }
+
+export interface BankingTransaction {
+  id: number;
+  account_id: number;
+  statement_batch_id: string;
+  transaction_date: string;
+  original_date_str: string;
+  particulars: string;
+  debit: number;
+  credit: number;
+  balance: number;
+  debit_paise: number;
+  credit_paise: number;
+  balance_paise: number;
+  remarks: string;
+  created_at: string;
+}
+
+export interface StatementGapDetails {
+  missing_from_date: string;
+  missing_to_date: string;
+  previous_closing_balance: number;
+  new_opening_balance: number;
+  difference: number;
+  reason: string;
+}
+
+export interface StatementUploadResponse {
+  status: 'success' | 'duplicates_detected' | 'all_duplicates' | 'gap_detected';
+  message: string;
+  imported_count?: number;
+  duplicate_count?: number;
+  total_count?: number;
+  gap_details?: StatementGapDetails;
+  pending_statement_id?: number;
+  months_updated?: string[];
+  account?: BankingAccount;
+}

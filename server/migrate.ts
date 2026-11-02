@@ -341,6 +341,42 @@ export function runMigration() {
       if (!bankAccCols.some(c => c.name === 'monthly_statuses')) {
         db.exec("ALTER TABLE banking_accounts ADD COLUMN monthly_statuses TEXT");
       }
+
+      // 13. Create banking_transactions and banking_pending_statements tables
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS banking_transactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          account_id INTEGER NOT NULL REFERENCES banking_accounts(id) ON DELETE CASCADE,
+          statement_batch_id TEXT NOT NULL,
+          transaction_date TEXT NOT NULL,
+          original_date_str TEXT NOT NULL,
+          particulars TEXT NOT NULL,
+          debit_paise INTEGER NOT NULL DEFAULT 0,
+          credit_paise INTEGER NOT NULL DEFAULT 0,
+          balance_paise INTEGER NOT NULL,
+          remarks TEXT DEFAULT '',
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_banking_txns_acc_date 
+          ON banking_transactions(account_id, transaction_date);
+        CREATE INDEX IF NOT EXISTS idx_banking_txns_match 
+          ON banking_transactions(account_id, transaction_date, debit_paise, credit_paise, balance_paise);
+
+        CREATE TABLE IF NOT EXISTS banking_pending_statements (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          account_id INTEGER NOT NULL REFERENCES banking_accounts(id) ON DELETE CASCADE,
+          original_filename TEXT NOT NULL,
+          temp_file_path TEXT NOT NULL,
+          from_date TEXT NOT NULL,
+          to_date TEXT NOT NULL,
+          opening_balance_paise INTEGER NOT NULL,
+          closing_balance_paise INTEGER NOT NULL,
+          extracted_json TEXT NOT NULL,
+          gap_details_json TEXT NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('pending_gap', 'resolved', 'cancelled')),
+          created_at TEXT NOT NULL
+        );
+      `);
     })();
   } finally {
     db.pragma('foreign_keys = ON');

@@ -208,3 +208,37 @@ CREATE TABLE IF NOT EXISTS banking_accounts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_banking_accounts_acc ON banking_accounts(account_number);
+
+CREATE TABLE IF NOT EXISTS banking_transactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_id INTEGER NOT NULL REFERENCES banking_accounts(id) ON DELETE CASCADE,
+  statement_batch_id TEXT NOT NULL,
+  transaction_date TEXT NOT NULL,
+  original_date_str TEXT NOT NULL,
+  particulars TEXT NOT NULL,
+  debit_paise INTEGER NOT NULL DEFAULT 0,
+  credit_paise INTEGER NOT NULL DEFAULT 0,
+  balance_paise INTEGER NOT NULL,
+  remarks TEXT DEFAULT '',
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_banking_txns_acc_date 
+  ON banking_transactions(account_id, transaction_date);
+CREATE INDEX IF NOT EXISTS idx_banking_txns_match 
+  ON banking_transactions(account_id, transaction_date, debit_paise, credit_paise, balance_paise);
+
+CREATE TABLE IF NOT EXISTS banking_pending_statements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_id INTEGER NOT NULL REFERENCES banking_accounts(id) ON DELETE CASCADE,
+  original_filename TEXT NOT NULL,
+  temp_file_path TEXT NOT NULL,
+  from_date TEXT NOT NULL,
+  to_date TEXT NOT NULL,
+  opening_balance_paise INTEGER NOT NULL,
+  closing_balance_paise INTEGER NOT NULL,
+  extracted_json TEXT NOT NULL,
+  gap_details_json TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('pending_gap', 'resolved', 'cancelled')),
+  created_at TEXT NOT NULL
+);
