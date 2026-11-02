@@ -330,11 +330,17 @@ export function runMigration() {
           ifsc_code TEXT NOT NULL,
           account_number TEXT NOT NULL,
           account_holder_name TEXT NOT NULL,
+          monthly_statuses TEXT,
           created_at TEXT NOT NULL,
           UNIQUE(account_number, ifsc_code)
         );
         CREATE INDEX IF NOT EXISTS idx_banking_accounts_acc ON banking_accounts(account_number);
       `);
+
+      const bankAccCols = db.prepare("PRAGMA table_info(banking_accounts)").all() as any[];
+      if (!bankAccCols.some(c => c.name === 'monthly_statuses')) {
+        db.exec("ALTER TABLE banking_accounts ADD COLUMN monthly_statuses TEXT");
+      }
     })();
   } finally {
     db.pragma('foreign_keys = ON');

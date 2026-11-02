@@ -7,12 +7,27 @@ const router = Router();
 router.get('/accounts', (req, res) => {
   try {
     const accounts = db.prepare(`
-      SELECT id, bank_name, branch, account_type, ifsc_code, account_number, account_holder_name, created_at
+      SELECT id, bank_name, branch, account_type, ifsc_code, account_number, account_holder_name, monthly_statuses, created_at
       FROM banking_accounts
       ORDER BY id ASC
-    `).all();
+    `).all() as any[];
 
-    res.json({ accounts });
+    const formattedAccounts = accounts.map(a => {
+      let statuses = undefined;
+      if (a.monthly_statuses) {
+        try {
+          statuses = JSON.parse(a.monthly_statuses);
+        } catch {
+          statuses = undefined;
+        }
+      }
+      return {
+        ...a,
+        monthly_statuses: statuses
+      };
+    });
+
+    res.json({ accounts: formattedAccounts });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to fetch banking accounts' });
   }
@@ -98,7 +113,7 @@ router.post('/accounts', (req, res) => {
     );
 
     const createdAccount = db.prepare(`
-      SELECT id, bank_name, branch, account_type, ifsc_code, account_number, account_holder_name, created_at
+      SELECT id, bank_name, branch, account_type, ifsc_code, account_number, account_holder_name, monthly_statuses, created_at
       FROM banking_accounts
       WHERE id = ?
     `).get(result.lastInsertRowid);

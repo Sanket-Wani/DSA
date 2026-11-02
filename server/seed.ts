@@ -172,6 +172,160 @@ export function runSeed() {
   insertSales.run(2, 'Priya Mehta', now);
   insertSales.run(3, 'Amit Patel', now);
 
+  // 8. Banking Accounts (Dummy Master Data)
+  const dummyAccounts = [
+    {
+      bank_name: 'HDFC Bank',
+      branch: 'Shivajinagar, Pune',
+      account_type: 'CA',
+      ifsc_code: 'HDFC0000240',
+      account_number: '50200012345678',
+      account_holder_name: 'Mavin Credit Consultant Private Limited',
+      monthly_statuses: JSON.stringify({
+        '2026-1': 'complete',
+        '2026-2': 'complete',
+        '2026-3': 'complete',
+        '2026-4': 'complete',
+        '2026-5': 'partially_complete',
+        '2026-6': 'complete',
+        '2026-7': 'complete',
+        '2026-8': 'fully_incomplete',
+        '2026-9': 'complete',
+        '2026-10': 'unuploaded',
+        '2026-11': 'unuploaded'
+      })
+    },
+    {
+      bank_name: 'ICICI Bank',
+      branch: 'Swargate, Pune',
+      account_type: 'CA',
+      ifsc_code: 'ICIC0000004',
+      account_number: '000405001234',
+      account_holder_name: 'Vinayak Associates',
+      monthly_statuses: JSON.stringify({
+        '2026-1': 'complete',
+        '2026-2': 'complete',
+        '2026-3': 'complete',
+        '2026-4': 'complete',
+        '2026-5': 'complete',
+        '2026-6': 'complete',
+        '2026-7': 'complete',
+        '2026-8': 'complete',
+        '2026-9': 'partially_complete',
+        '2026-10': 'complete',
+        '2026-11': 'unuploaded'
+      })
+    },
+    {
+      bank_name: 'State Bank of India',
+      branch: 'Deccan Gymkhana, Pune',
+      account_type: 'Saving',
+      ifsc_code: 'SBIN0000300',
+      account_number: '30248591234',
+      account_holder_name: 'Rajesh Sharma',
+      monthly_statuses: JSON.stringify({
+        '2026-1': 'complete',
+        '2026-2': 'complete',
+        '2026-3': 'complete',
+        '2026-4': 'complete',
+        '2026-5': 'fully_incomplete',
+        '2026-6': 'unuploaded',
+        '2026-7': 'unuploaded',
+        '2026-8': 'unuploaded',
+        '2026-9': 'unuploaded',
+        '2026-10': 'unuploaded',
+        '2026-11': 'unuploaded'
+      })
+    },
+    {
+      bank_name: 'Axis Bank',
+      branch: 'Kothrud, Pune',
+      account_type: 'CA',
+      ifsc_code: 'UTIB0000004',
+      account_number: '919020045678901',
+      account_holder_name: 'Vinayak Financial Services',
+      monthly_statuses: JSON.stringify({
+        '2026-1': 'unuploaded',
+        '2026-2': 'unuploaded',
+        '2026-3': 'unuploaded',
+        '2026-4': 'unuploaded',
+        '2026-5': 'unuploaded',
+        '2026-6': 'unuploaded',
+        '2026-7': 'partially_complete',
+        '2026-8': 'complete',
+        '2026-9': 'complete',
+        '2026-10': 'unuploaded',
+        '2026-11': 'unuploaded'
+      })
+    },
+    {
+      bank_name: 'Kotak Mahindra Bank',
+      branch: 'Camp, Pune',
+      account_type: 'Saving',
+      ifsc_code: 'KKBK0000123',
+      account_number: '1234567890',
+      account_holder_name: 'Sunil Deshmukh',
+      monthly_statuses: JSON.stringify({
+        '2026-1': 'unuploaded',
+        '2026-2': 'unuploaded',
+        '2026-3': 'unuploaded',
+        '2026-4': 'unuploaded',
+        '2026-5': 'unuploaded',
+        '2026-6': 'unuploaded',
+        '2026-7': 'unuploaded',
+        '2026-8': 'unuploaded',
+        '2026-9': 'unuploaded',
+        '2026-10': 'unuploaded',
+        '2026-11': 'unuploaded'
+      })
+    },
+    {
+      bank_name: 'Bank of Baroda',
+      branch: 'BKC, Mumbai',
+      account_type: 'CA',
+      ifsc_code: 'BARB0BKCBAN',
+      account_number: '098765432101',
+      account_holder_name: 'Mavin Commercial Advisory',
+      monthly_statuses: JSON.stringify({
+        '2026-1': 'complete',
+        '2026-2': 'partially_complete',
+        '2026-3': 'complete',
+        '2026-4': 'complete',
+        '2026-5': 'complete',
+        '2026-6': 'fully_incomplete',
+        '2026-7': 'complete',
+        '2026-8': 'complete',
+        '2026-9': 'partially_complete',
+        '2026-10': 'complete',
+        '2026-11': 'unuploaded'
+      })
+    }
+  ];
+
+  const insertBankAcc = db.prepare(`
+    INSERT INTO banking_accounts (bank_name, branch, account_type, ifsc_code, account_number, account_holder_name, monthly_statuses, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(account_number, ifsc_code) DO UPDATE SET
+      bank_name = excluded.bank_name,
+      branch = excluded.branch,
+      account_type = excluded.account_type,
+      account_holder_name = excluded.account_holder_name,
+      monthly_statuses = excluded.monthly_statuses
+  `);
+
+  dummyAccounts.forEach(acc => {
+    insertBankAcc.run(
+      acc.bank_name,
+      acc.branch,
+      acc.account_type,
+      acc.ifsc_code,
+      acc.account_number,
+      acc.account_holder_name,
+      acc.monthly_statuses,
+      now
+    );
+  });
+
   console.log('[Seed] Database seeded successfully.');
 }
 

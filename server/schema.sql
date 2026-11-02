@@ -202,6 +202,7 @@ CREATE TABLE IF NOT EXISTS banking_accounts (
   ifsc_code TEXT NOT NULL,
   account_number TEXT NOT NULL,
   account_holder_name TEXT NOT NULL,
+  monthly_statuses TEXT,
   created_at TEXT NOT NULL,
   UNIQUE(account_number, ifsc_code)
 );
