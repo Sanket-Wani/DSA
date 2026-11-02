@@ -319,6 +319,22 @@ export function runMigration() {
           updateInv.run(newId, lf.id);
         }
       }
+
+      // 12. Create banking_accounts table if missing
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS banking_accounts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          bank_name TEXT NOT NULL,
+          branch TEXT NOT NULL,
+          account_type TEXT NOT NULL CHECK(account_type IN ('CA', 'Saving')),
+          ifsc_code TEXT NOT NULL,
+          account_number TEXT NOT NULL,
+          account_holder_name TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(account_number, ifsc_code)
+        );
+        CREATE INDEX IF NOT EXISTS idx_banking_accounts_acc ON banking_accounts(account_number);
+      `);
     })();
   } finally {
     db.pragma('foreign_keys = ON');

@@ -5,6 +5,7 @@ import {
   Receipt,
   FileSpreadsheet,
   Landmark,
+  Building2,
   Users
 } from 'lucide-react';
 
@@ -17,6 +18,7 @@ export type NavigationModule =
   | 'Accounts'
   | 'GST report'
   | 'TDS report'
+  | 'Banking'
   | 'File Approve'
   | 'Users';
 
@@ -39,7 +41,8 @@ const mainNavItems: NavItemConfig[] = [
   { name: 'Telecalling', label: 'Telecalling', icon: <PhoneCall size={18} /> },
   { name: 'Create Invoices', label: 'Create Invoices', icon: <Receipt size={18} /> },
   { name: 'GST report', label: 'GST Reports', icon: <FileSpreadsheet size={18} /> },
-  { name: 'TDS report', label: 'TDS Reports', icon: <Landmark size={18} /> }
+  { name: 'TDS report', label: 'TDS Reports', icon: <Landmark size={18} /> },
+  { name: 'Banking', label: 'Banking', icon: <Building2 size={18} /> }
 ];
 
 const bottomNavItems: NavItemConfig[] = [

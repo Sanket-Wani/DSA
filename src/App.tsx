@@ -6,6 +6,7 @@ import { Telecalling } from './modules/Telecalling.js';
 import { CreateInvoices } from './modules/CreateInvoices.js';
 import { GSTReport } from './modules/GSTReport.js';
 import { TDSReport } from './modules/TDSReport.js';
+import { Banking } from './modules/Banking.js';
 import { UsersModule } from './modules/Users.js';
 
 export const App: React.FC = () => {
@@ -14,6 +15,7 @@ export const App: React.FC = () => {
     if (path.includes('user')) return { module: 'Users' };
     if (path.includes('gst')) return { module: 'GST report' };
     if (path.includes('tds')) return { module: 'TDS report' };
+    if (path.includes('banking')) return { module: 'Banking' };
     if (path.includes('account')) return { module: 'Dashboard', card: 'accounts' };
     if (path.includes('invoice')) return { module: 'Create Invoices' };
     if (path.includes('disbursement')) return { module: 'Dashboard', card: 'disbursements' };
@@ -39,6 +41,8 @@ export const App: React.FC = () => {
         return <GSTReport />;
       case 'TDS report':
         return <TDSReport />;
+      case 'Banking':
+        return <Banking />;
       case 'Users':
         return <UsersModule />;
       case 'File Logged-in':

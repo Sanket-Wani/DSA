@@ -18,6 +18,7 @@ data/*.db
 # Personal / Sensitive Documents
 Smart-Health-Report*.pdf
 deploy.py
+scripts/*.py
 
 # Environment variables
 .env

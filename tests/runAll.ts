@@ -408,6 +408,8 @@ async function runTests() {
       i.client_company_snapshot as company_name,
       i.client_name_snapshot as client_name,
       i.client_gstin_snapshot as gst_no,
+      i.amount,
+      i.total_amount,
       i.total_amount as invoice_total_amount,
       i.invoice_date
     FROM invoices i
@@ -471,6 +473,24 @@ async function runTests() {
   assert(computeRecordStatus(100000, 100000, 9000, 18000, 2000, 2000) === 'Partial', 'One section partial with others complete -> Record status is Partial (Yellow)');
   // All 3 complete -> Complete (Green record)
   assert(computeRecordStatus(100000, 100000, 18000, 18000, 2000, 2000) === 'Complete', 'All 3 sections complete -> Record status is Complete (Green)');
+
+  // Test 22: Banking Module Registration & DB Integration
+  console.log('\n--- 22. Banking Module Registration & Accounts Persistence ---');
+  const bankingTable = db.prepare("PRAGMA table_info(banking_accounts)").all() as any[];
+  assert(bankingTable.length >= 8, 'banking_accounts table schema initialized');
+
+  const testAccRes = db.prepare(`
+    INSERT INTO banking_accounts (bank_name, branch, account_type, ifsc_code, account_number, account_holder_name, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run('HDFC Bank', 'Shivajinagar Pune', 'CA', 'HDFC0000240', 'ALLTEST001', 'Mavin Credit Consultant Pvt Ltd', now);
+
+  const testAccId = Number(testAccRes.lastInsertRowid);
+  const testAcc = db.prepare('SELECT * FROM banking_accounts WHERE id = ?').get(testAccId) as any;
+  assert(testAcc && testAcc.account_type === 'CA', 'Banking account persisted with CA type');
+  assert(testAcc && testAcc.bank_name === 'HDFC Bank', 'Banking account persisted with bank name');
+  assert(testAcc && testAcc.ifsc_code === 'HDFC0000240', 'Banking account persisted with IFSC');
+
+  db.prepare('DELETE FROM banking_accounts WHERE id = ?').run(testAccId);
 
   // Cleanup test artifacts
   db.prepare('DELETE FROM disbursements WHERE file_id = ?').run(fileId1);

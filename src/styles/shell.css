@@ -689,3 +689,151 @@
   }
 }
 
+/* ========================================================
+   Banking Module Styles
+   ======================================================== */
+.banking-table-container {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow-x: auto;
+  box-shadow: var(--shadow-none);
+  max-width: 100%;
+}
+
+.banking-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+
+.banking-table th {
+  background-color: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.02em;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.banking-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-md);
+  color: var(--color-text-primary);
+  vertical-align: middle;
+}
+
+.banking-table tbody tr {
+  transition: background-color 120ms ease;
+}
+
+.banking-table tbody tr:hover td {
+  background-color: var(--color-surface-hover);
+}
+
+/* Sticky Columns */
+.banking-table th.col-sticky-1,
+.banking-table td.col-sticky-1 {
+  position: sticky;
+  left: 0;
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
+  z-index: 2;
+  background-color: var(--color-surface);
+}
+
+.banking-table th.col-sticky-2,
+.banking-table td.col-sticky-2 {
+  position: sticky;
+  left: 220px;
+  width: 110px;
+  min-width: 110px;
+  max-width: 110px;
+  z-index: 2;
+  background-color: var(--color-surface);
+}
+
+.banking-table th.col-sticky-3,
+.banking-table td.col-sticky-3 {
+  position: sticky;
+  left: 330px;
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+  z-index: 2;
+  background-color: var(--color-surface);
+}
+
+.banking-table th.col-sticky-4,
+.banking-table td.col-sticky-4 {
+  position: sticky;
+  left: 530px;
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+  z-index: 2;
+  background-color: var(--color-surface);
+  border-right: 2px solid var(--color-border-strong);
+  box-shadow: 2px 0 5px -2px rgba(0, 0, 0, 0.08);
+}
+
+/* Header sticky stacking */
+.banking-table th.col-sticky-1,
+.banking-table th.col-sticky-2,
+.banking-table th.col-sticky-3,
+.banking-table th.col-sticky-4 {
+  z-index: 4;
+  background-color: var(--color-surface-subtle);
+}
+
+/* Sticky cells on row hover */
+.banking-table tbody tr:hover td.col-sticky-1,
+.banking-table tbody tr:hover td.col-sticky-2,
+.banking-table tbody tr:hover td.col-sticky-3,
+.banking-table tbody tr:hover td.col-sticky-4 {
+  background-color: var(--color-surface-hover);
+}
+
+/* Monthly columns */
+.banking-table th.col-month,
+.banking-table td.col-month {
+  width: 72px;
+  min-width: 72px;
+  max-width: 78px;
+  text-align: center;
+  padding: 8px 4px;
+}
+
+.month-status-cell-unuploaded {
+  background-color: #f1f5f9 !important;
+}
+
+.month-status-cell-complete {
+  background-color: var(--color-success-bg) !important;
+}
+
+.month-status-cell-partial {
+  background-color: var(--color-danger-bg) !important;
+}
+
+.month-status-cell-incomplete {
+  background-color: var(--color-danger-bg) !important;
+}
+
+.banking-checkbox-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  pointer-events: none;
+  user-select: none;
+}
+
+

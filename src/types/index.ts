@@ -219,3 +219,19 @@ export interface AccountsRecord {
   tds_recovery_status?: 'Pending' | 'Recovered' | 'Claimed in Return' | 'Written Off';
   updated_at?: string | null;
 }
+
+export type BankingAccountType = 'CA' | 'Saving';
+
+export type MonthlyStatus = 'complete' | 'partially_complete' | 'fully_incomplete' | 'unuploaded';
+
+export interface BankingAccount {
+  id: number;
+  bank_name: string;
+  branch: string;
+  account_type: BankingAccountType;
+  ifsc_code: string;
+  account_number: string;
+  account_holder_name: string;
+  created_at: string;
+  monthly_statuses?: Record<string, MonthlyStatus>;
+}
