@@ -145,6 +145,7 @@ export const Banking: React.FC = () => {
 
   // Monthly Calendar Columns: January (1) to December (12)
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   // Determine whether a given month in selectedYear is a future month
   const isFutureMonth = (year: number, month: number): boolean => {
@@ -441,22 +442,22 @@ export const Banking: React.FC = () => {
             <tr>
               {/* Fixed Account Information Columns */}
               <th className="col-sticky-1" scope="col">
-                Bank Name + Bank Branch
+                Bank name
               </th>
               <th className="col-sticky-2" scope="col">
                 Account Type
               </th>
               <th className="col-sticky-3" scope="col">
-                IFSC Code + Account Number
+                Account no.
               </th>
               <th className="col-sticky-4" scope="col">
                 Account Holder Name
               </th>
 
-              {/* Horizontally Scrollable Calendar Months (YYYY-1 to YYYY-12) */}
+              {/* Horizontally Scrollable Calendar Months ('Jan, 2026' ... 'Dec, 2026') */}
               {months.map(m => (
                 <th key={m} className="col-month" scope="col">
-                  {selectedYearNum}-{m}
+                  {MONTH_NAMES[m - 1]}, {selectedYearNum}
                 </th>
               ))}
             </tr>
@@ -510,19 +511,9 @@ export const Banking: React.FC = () => {
                     />
                   </td>
 
-                  {/* Fixed Column 3: IFSC Code + Account Number */}
+                  {/* Fixed Column 3: Account Number & IFSC Code */}
                   <td className="col-sticky-3">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          color: '#64748b',
-                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                          letterSpacing: '0.02em'
-                        }}
-                      >
-                        {acc.ifsc_code}
-                      </span>
                       <span
                         style={{
                           fontSize: '13px',
@@ -532,6 +523,16 @@ export const Banking: React.FC = () => {
                         }}
                       >
                         {acc.account_number}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          color: '#64748b',
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                          letterSpacing: '0.02em'
+                        }}
+                      >
+                        IFSC: {acc.ifsc_code}
                       </span>
                     </div>
                   </td>

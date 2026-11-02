@@ -802,9 +802,9 @@
 /* Monthly columns */
 .banking-table th.col-month,
 .banking-table td.col-month {
-  width: 72px;
-  min-width: 72px;
-  max-width: 78px;
+  width: 86px;
+  min-width: 86px;
+  max-width: 92px;
   text-align: center;
   padding: 8px 4px;
 }
